@@ -6,6 +6,7 @@ import { Plus, User, X } from "lucide-react";
 
 type UserCog = {
   id: number;
+  staffCode: string;
   name: string;
   position: string;
   phone: string;
@@ -13,11 +14,13 @@ type UserCog = {
   birthday: string;
   gender: string;
   createdAt: string;
+  password: string;
 };
 
 const initialUserCog: UserCog[] = [
   {
     id: 1,
+    staffCode: "NV001",
     name: "Nguyễn Văn A",
     position: "Quản lý",
     phone: "0123456789",
@@ -25,16 +28,115 @@ const initialUserCog: UserCog[] = [
     birthday: "1990-01-01",
     gender: "Nam",
     createdAt: "2025-07-30 12:00:00",
+    password: "123456",
   },
   {
     id: 2,
+    staffCode: "NV002",
     name: "Trần Thị B",
     position: "Nhân viên",
     phone: "0987654321",
     email: "b@example.com",
-    birthday: "1995-05-15",
+    birthday: "1992-03-14",
     gender: "Nữ",
     createdAt: "2025-07-30 12:30:00",
+    password: "123456",
+  },
+  {
+    id: 3,
+    staffCode: "NV003",
+    name: "Lê Văn C",
+    position: "Bảo vệ",
+    phone: "0911223344",
+    email: "c@example.com",
+    birthday: "1988-06-20",
+    gender: "Nam",
+    createdAt: "2025-07-30 13:00:00",
+    password: "123456",
+  },
+  {
+    id: 4,
+    staffCode: "NV004",
+    name: "Phạm Thị D",
+    position: "Thu ngân",
+    phone: "0922334455",
+    email: "d@example.com",
+    birthday: "1995-11-11",
+    gender: "Nữ",
+    createdAt: "2025-07-30 13:30:00",
+    password: "123456",
+  },
+  {
+    id: 5,
+    staffCode: "NV005",
+    name: "Đỗ Minh E",
+    position: "Nhân viên",
+    phone: "0933445566",
+    email: "e@example.com",
+    birthday: "1993-04-25",
+    gender: "Nam",
+    createdAt: "2025-07-30 14:00:00",
+    password: "123456",
+  },
+  {
+    id: 6,
+    staffCode: "NV006",
+    name: "Hoàng Thị F",
+    position: "Nhân viên",
+    phone: "0944556677",
+    email: "f@example.com",
+    birthday: "1996-08-19",
+    gender: "Nữ",
+    createdAt: "2025-07-30 14:30:00",
+    password: "123456",
+  },
+  {
+    id: 7,
+    staffCode: "NV007",
+    name: "Ngô Văn G",
+    position: "Kỹ thuật",
+    phone: "0955667788",
+    email: "g@example.com",
+    birthday: "1987-12-01",
+    gender: "Nam",
+    createdAt: "2025-07-30 15:00:00",
+    password: "123456",
+  },
+  {
+    id: 8,
+    staffCode: "NV008",
+    name: "Vũ Thị H",
+    position: "Lễ tân",
+    phone: "0966778899",
+    email: "h@example.com",
+    birthday: "1998-01-09",
+    gender: "Nữ",
+    createdAt: "2025-07-30 15:30:00",
+    password: "123456",
+  },
+  {
+    id: 9,
+    staffCode: "NV009",
+    name: "Bùi Văn I",
+    position: "Tạp vụ",
+    phone: "0977889900",
+    email: "i@example.com",
+    birthday: "1980-10-15",
+    gender: "Nam",
+    createdAt: "2025-07-30 16:00:00",
+    password: "123456",
+  },
+  {
+    id: 10,
+    staffCode: "NV010",
+    name: "Trịnh Thị K",
+    position: "Nhân viên",
+    phone: "0988990011",
+    email: "k@example.com",
+    birthday: "1994-07-07",
+    gender: "Nữ",
+    createdAt: "2025-07-30 16:30:00",
+    password: "123456",
   },
 ];
 
@@ -44,6 +146,7 @@ export default function StaffPage() {
   const [autoPassword, setAutoPassword] = useState(false);
   const [unsaved, setUnsaved] = useState(false);
   const [newUser, setNewUser] = useState<Omit<UserCog, "id" | "createdAt"> & { password: string }>({
+    staffCode: "",
     name: "",
     position: "Nhân viên",
     phone: "",
@@ -69,10 +172,11 @@ export default function StaffPage() {
 
     setUserCogs([
       ...userCogs,
-      { id: Date.now(), name, phone, email, position, birthday, gender, createdAt },
+      { id: Date.now(), staffCode: newUser.staffCode, name, phone, email, position, birthday, gender, createdAt, password },
     ]);
     setShowModal(false);
     setNewUser({
+      staffCode: "",
       name: "",
       phone: "",
       email: "",
@@ -121,8 +225,8 @@ export default function StaffPage() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6 max-w-5xl mx-auto text-blue-900">
-        <h1 className="text-4xl font-bold">Quản lý nhân viên</h1>
+      <div className="flex justify-between items-center mb-6 max-w-6xl mx-auto text-blue-900">
+        <h1 className="text-3xl font-bold">Quản lý nhân viên</h1>
         <button
           onClick={() => setShowModal(true)}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg shadow text-base cursor-pointer"
@@ -131,31 +235,31 @@ export default function StaffPage() {
         </button>
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden max-w-5xl mx-auto">
-        <table className="min-w-full table-auto text-base">
-          <thead className="bg-gray-100 text-gray-700 text-left text-sm">
+      <div className="bg-white shadow rounded-lg overflow-hidden max-w-6xl mx-auto">
+        <table className="min-w-full text-base">
+          <thead className="bg-gray-100 text-gray-700 text-left text-base">
             <tr>
-              <th className="p-3">Tên</th>
-              <th className="p-3">Chức vụ</th>
-              <th className="p-3">Ngày sinh</th>
-              <th className="p-3 text-right">Hành động</th>
+              <th className="p-4 min-w-[220px]">Tên</th>
+              <th className="p-4 min-w-[180px]">Chức vụ</th>
+              <th className="p-4 min-w-[140px]">Ngày sinh</th>
+              <th className="p-4 text-right">Hành động</th>
             </tr>
           </thead>
           <tbody>
             {userCogs.map((user) => (
-              <tr key={user.id} className="border-t hover:bg-gray-50">
-                <td className="p-3 font-medium">
+              <tr key={user.id} className="border-t hover:bg-gray-50 text-base">
+                <td className="p-4 font-medium text-gray-900">
                   <div className="flex items-center gap-2">
                     <User className="w-5 h-5 text-gray-600" />
                     {user.name}
                   </div>
                 </td>
-                <td className="p-3">{user.position}</td>
-                <td className="p-3">{user.birthday}</td>
-                <td className="p-3 text-right">
+                <td className="p-4">{user.position}</td>
+                <td className="p-4">{user.birthday}</td>
+                <td className="p-4 text-right">
                   <Link
                     href={`/staff/${user.id}`}
-                    className="inline-block bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-1 rounded-lg transition"
+                    className="inline-block bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-1.5 rounded-lg transition"
                   >
                     Chi tiết
                   </Link>

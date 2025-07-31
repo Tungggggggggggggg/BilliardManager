@@ -1,31 +1,166 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+
+type Staff = {
+  id: number;
+  staffCode: string;
+  name: string;
+  position: string;
+  phone: string;
+  email: string;
+  birthday: string;
+  gender: string;
+  createdAt: string;
+  password?: string;
+};
+
+const staffList: Staff[] = [
+  
+  {
+    id: 1,
+    staffCode: "NV001",
+    name: "Nguyễn Văn A",
+    position: "Quản lý",
+    phone: "0123456789",
+    email: "a@example.com",
+    birthday: "1990-01-01",
+    gender: "Nam",
+    createdAt: "2025-07-30 12:00:00",
+    password: "123456",
+  },
+  {
+    id: 2,
+    staffCode: "NV002",
+    name: "Trần Thị B",
+    position: "Nhân viên",
+    phone: "0987654321",
+    email: "b@example.com",
+    birthday: "1992-03-14",
+    gender: "Nữ",
+    createdAt: "2025-07-30 12:30:00",
+    password: "123456",
+  },
+  {
+    id: 3,
+    staffCode: "NV003",
+    name: "Lê Văn C",
+    position: "Bảo vệ",
+    phone: "0911223344",
+    email: "c@example.com",
+    birthday: "1988-06-20",
+    gender: "Nam",
+    createdAt: "2025-07-30 13:00:00",
+    password: "123456",
+  },
+  {
+    id: 4,
+    staffCode: "NV004",
+    name: "Phạm Thị D",
+    position: "Thu ngân",
+    phone: "0922334455",
+    email: "d@example.com",
+    birthday: "1995-11-11",
+    gender: "Nữ",
+    createdAt: "2025-07-30 13:30:00",
+    password: "123456",
+  },
+  {
+    id: 5,
+    staffCode: "NV005",
+    name: "Đỗ Minh E",
+    position: "Nhân viên",
+    phone: "0933445566",
+    email: "e@example.com",
+    birthday: "1993-04-25",
+    gender: "Nam",
+    createdAt: "2025-07-30 14:00:00",
+    password: "123456",
+  },
+  {
+    id: 6,
+    staffCode: "NV006",
+    name: "Hoàng Thị F",
+    position: "Nhân viên",
+    phone: "0944556677",
+    email: "f@example.com",
+    birthday: "1996-08-19",
+    gender: "Nữ",
+    createdAt: "2025-07-30 14:30:00",
+    password: "123456",
+  },
+  {
+    id: 7,
+    staffCode: "NV007",
+    name: "Ngô Văn G",
+    position: "Kỹ thuật",
+    phone: "0955667788",
+    email: "g@example.com",
+    birthday: "1987-12-01",
+    gender: "Nam",
+    createdAt: "2025-07-30 15:00:00",
+    password: "123456",
+  },
+  {
+    id: 8,
+    staffCode: "NV008",
+    name: "Vũ Thị H",
+    position: "Lễ tân",
+    phone: "0966778899",
+    email: "h@example.com",
+    birthday: "1998-01-09",
+    gender: "Nữ",
+    createdAt: "2025-07-30 15:30:00",
+    password: "123456",
+  },
+  {
+    id: 9,
+    staffCode: "NV009",
+    name: "Bùi Văn I",
+    position: "Tạp vụ",
+    phone: "0977889900",
+    email: "i@example.com",
+    birthday: "1980-10-15",
+    gender: "Nam",
+    createdAt: "2025-07-30 16:00:00",
+    password: "123456",
+  },
+  {
+    id: 10,
+    staffCode: "NV010",
+    name: "Trịnh Thị K",
+    position: "Nhân viên",
+    phone: "0988990011",
+    email: "k@example.com",
+    birthday: "1994-07-07",
+    gender: "Nữ",
+    createdAt: "2025-07-30 16:30:00",
+    password: "123456",
+  },
+];
+
 
 export default function StaffDetailPage() {
   const { id } = useParams();
   const router = useRouter();
 
-  const [staff, setStaff] = useState({
-    id,
-    staffCode: "NV001",
-    name: "Nguyễn Văn A",
-    gender: "Nam",
-    birthdate: "1995-05-10",
-    position: "Quản lý",
-    startDate: "2023-01-01",
-    phone: "0123456789",
-    email: "nva@example.com",
-    password: "12345678",
-  });
+  const currentStaff = staffList.find((s) => s.id === Number(id));
 
+  const [staff, setStaff] = useState<Staff | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({ ...staff });
+  const [editData, setEditData] = useState<Staff | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const positions = ["Quản lý", "Nhân viên", "Thu ngân", "Bảo vệ"];
   const genders = ["Nam", "Nữ", "Khác"];
+
+  useEffect(() => {
+    if (currentStaff) {
+      setStaff(currentStaff);
+      setEditData(currentStaff);
+    }
+  }, [currentStaff]);
 
   const handleDelete = () => {
     if (window.confirm("Bạn có chắc muốn xoá nhân viên này?")) {
@@ -34,33 +169,28 @@ export default function StaffDetailPage() {
     }
   };
 
-  const handleOpenEdit = () => {
-    setEditData({ ...staff });
-    setIsEditing(true);
-  };
-
   const handleEditChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
+    if (!editData) return;
     setEditData({ ...editData, [e.target.name]: e.target.value });
   };
 
   const handleCancelEdit = () => {
-    const isChanged = JSON.stringify(editData) !== JSON.stringify(staff);
-    if (isChanged) {
-      const confirmCancel = window.confirm(
-        "Bạn có chắc muốn huỷ chỉnh sửa? Mọi thay đổi sẽ không được lưu."
-      );
-      if (!confirmCancel) return;
+    if (JSON.stringify(editData) !== JSON.stringify(staff)) {
+      if (!window.confirm("Bạn có chắc muốn huỷ chỉnh sửa?")) return;
     }
     setIsEditing(false);
   };
 
   const handleSaveEdit = () => {
-    setStaff({ ...editData });
+    if (!editData) return;
+    setStaff(editData);
     setIsEditing(false);
     alert("Đã cập nhật thông tin!");
   };
+
+  if (!staff) return <div className="p-6">Không tìm thấy nhân viên</div>;
 
   return (
     <div className="p-6 w-full max-w-screen-xl mx-auto">
@@ -71,14 +201,14 @@ export default function StaffDetailPage() {
           <InfoRow label="Mã nhân viên" value={staff.staffCode} />
           <InfoRow label="Tên" value={staff.name} />
           <InfoRow label="Giới tính" value={staff.gender} />
-          <InfoRow label="Ngày sinh" value={staff.birthdate} />
+          <InfoRow label="Ngày sinh" value={staff.birthday} />
           <InfoRow label="Chức vụ" value={staff.position} />
-          <InfoRow label="Thời gian vào làm" value={staff.startDate} />
+          <InfoRow label="Thời gian vào làm" value={staff.createdAt} />
           <InfoRow label="Số điện thoại" value={staff.phone} />
           <InfoRow label="Gmail" value={staff.email} />
           <InfoRow
             label="Mật khẩu"
-            value={showPassword ? staff.password : "********"}
+            value={showPassword ? staff.password || "" : "********"}
             trailing={
               <button
                 className="text-sm text-blue-600 hover:underline"
@@ -98,17 +228,16 @@ export default function StaffDetailPage() {
             Xoá nhân viên
           </button>
           <button
-            onClick={handleOpenEdit}
+            onClick={() => setIsEditing(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow"
           >
             Chỉnh sửa
           </button>
         </div>
 
-        {isEditing && (
+        {isEditing && editData && (
           <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/20">
             <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl p-8 relative">
-              {/* Close button */}
               <button
                 onClick={handleCancelEdit}
                 className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-2xl font-bold"
@@ -125,9 +254,9 @@ export default function StaffDetailPage() {
                   { name: "staffCode", label: "Mã nhân viên", type: "text" },
                   { name: "name", label: "Tên", type: "text" },
                   { name: "gender", label: "Giới tính", type: "select", options: genders },
-                  { name: "birthdate", label: "Ngày sinh", type: "date" },
+                  { name: "birthday", label: "Ngày sinh", type: "date" },
                   { name: "position", label: "Chức vụ", type: "select", options: positions },
-                  { name: "startDate", label: "Thời gian vào làm", type: "date" },
+                  { name: "createdAt", label: "Thời gian vào làm", type: "date" },
                   { name: "phone", label: "Số điện thoại", type: "text" },
                   { name: "email", label: "Gmail", type: "email" },
                   { name: "password", label: "Mật khẩu", type: "text" },
@@ -190,7 +319,7 @@ function InfoRow({
   trailing,
 }: {
   label: string;
-  value: string;
+  value: string | undefined;
   trailing?: React.ReactNode;
 }) {
   return (
