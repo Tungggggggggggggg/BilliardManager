@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
+const roboto = Roboto({
+    variable: "--font-roboto-sans",
+    subsets: ["vietnamese"],
+    weight: ["100", "300", "400", "500", "700", "900"]
 });
 
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
-    subsets: ["latin"],
+const robotoMono = Roboto_Mono({
+    variable: "--font-roboto-mono",
+    subsets: ["vietnamese"],
+    weight: ["100", "300", "400", "500", "700"]
 });
 
 export const metadata: Metadata = {
@@ -25,12 +27,12 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="vi" className="light tc-new-price">
+        <html lang="vi" className="light tc-new-price h-full">
             <body
-                className={`${geistSans.variable} ${geistMono.variable} antialiased flex h-screen`}
+                className={`${roboto.variable} ${robotoMono.variable} font-sans antialiased flex h-full`}
             >
                 <Sidebar />
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col overflow-y-auto">
                     <Header />
                     {children}
                 </div>

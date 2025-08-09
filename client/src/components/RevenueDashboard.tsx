@@ -6,7 +6,6 @@ import {
     ArrowUpRight,
     TrendingUp,
     Users,
-    CreditCard,
     Activity,
     Clock,
     DollarSign,
@@ -14,9 +13,7 @@ import {
 } from "lucide-react";
 
 import {
-    LineChart,
     Line,
-    BarChart,
     Bar,
     XAxis,
     YAxis,
@@ -77,7 +74,6 @@ const RevenueDashboard: React.FC = () => {
         return `${h}h${m ? ` ${m}m` : ""}`;
     };
 
-    // Custom Tooltip for Recharts
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload;
@@ -220,7 +216,7 @@ const RevenueDashboard: React.FC = () => {
                             Thời gian trung bình
                         </h3>
                         <p className="text-3xl font-bold mt-2">
-                            {formatTime(revenueData.reduce((acc, curr) => acc + curr.avgTime, 0) / revenueData.length)} {/* Average time */}
+                            {formatTime(revenueData.reduce((acc, curr) => acc + curr.avgTime, 0) / revenueData.length)}
                         </p>
                         <p className="text-amber-100 text-sm mt-2">
                             +5% so với tháng trước

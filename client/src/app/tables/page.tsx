@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Table, Clock, DollarSign, Search, Check, X } from "lucide-react";
+import { Table, Clock, DollarSign, Search, X } from "lucide-react";
 import gsap from "gsap";
 
 const TablesManagement: React.FC = () => {
-    // Dữ liệu mẫu
     const [tables, setTables] = useState([
         { id: 1, status: "available", usageTime: 0, revenue: 0 },
         { id: 2, status: "occupied", usageTime: 1.5, revenue: 150000 },

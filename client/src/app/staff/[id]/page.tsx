@@ -1,7 +1,31 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  User,
+  Phone,
+  Mail,
+  Calendar,
+  Award,
+  Edit,
+  Trash2,
+  X,
+  Info,
+  ArrowLeft,
+  Save,
+  Lock,
+  Eye,
+  EyeOff
+} from "lucide-react";
+import gsap from "gsap";
+import Notification from "@/components/Notification";
+
+interface NotificationState {
+  visible: boolean;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
 
 type Staff = {
   id: number;
@@ -17,7 +41,6 @@ type Staff = {
 };
 
 const staffList: Staff[] = [
-  
   {
     id: 1,
     staffCode: "NV001",
@@ -140,6 +163,17 @@ const staffList: Staff[] = [
   },
 ];
 
+const formatDate = (dateString: string): string => {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+const formatDateTime = (dateTimeString: string): string => {
+  if (!dateTimeString) return '';
+  const [date, time] = dateTimeString.split(' ');
+  return `${time.substring(0, 5)} ${formatDate(date)}`;
+};
 
 export default function StaffDetailPage() {
   const { id } = useParams();
@@ -151,21 +185,71 @@ export default function StaffDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Staff | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isConfirmingCancel, setIsConfirmingCancel] = useState(false);
+  const [notification, setNotification] = useState<NotificationState>({ visible: false, message: '', type: 'info' });
 
-  const positions = ["Quản lý", "Nhân viên", "Thu ngân", "Bảo vệ"];
-  const genders = ["Nam", "Nữ", "Khác"];
+  const detailRef = useRef(null);
+  const deleteModalRef = useRef(null);
+  const cancelModalRef = useRef(null);
 
   useEffect(() => {
     if (currentStaff) {
       setStaff(currentStaff);
       setEditData(currentStaff);
+      gsap.fromTo(
+        detailRef.current,
+        { opacity: 0, y: 50 },
+        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
+      );
     }
   }, [currentStaff]);
 
+  const positions = ["Quản lý", "Nhân viên", "Thu ngân", "Bảo vệ", "Kỹ thuật", "Lễ tân", "Tạp vụ"];
+  const genders = ["Nam", "Nữ", "Khác"];
+
+  const handleShowNotification = (message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ visible: true, message, type });
+  };
+
+  const handleHideNotification = () => {
+    setNotification({ visible: false, message: '', type: 'info' });
+  };
+
   const handleDelete = () => {
-    if (window.confirm("Bạn có chắc muốn xoá nhân viên này?")) {
-      alert("Đã xoá nhân viên");
-      router.push("/staff");
+    setIsConfirmingDelete(true);
+  };
+
+  const confirmDelete = () => {
+    gsap.to(deleteModalRef.current, {
+      scale: 0.8,
+      opacity: 0,
+      duration: 0.3,
+      onComplete: () => {
+        setIsConfirmingDelete(false);
+        handleShowNotification('Đã xoá nhân viên thành công!', 'success');
+        setTimeout(() => {
+          router.push("/staff");
+        }, 1500);
+      },
+    });
+  };
+
+  const cancelDelete = () => {
+    gsap.to(deleteModalRef.current, {
+      scale: 0.8,
+      opacity: 0,
+      duration: 0.3,
+      onComplete: () => {
+        setIsConfirmingDelete(false);
+      },
+    });
+  };
+
+  const handleOpenEdit = () => {
+    if (staff) {
+        setEditData({ ...staff });
+        setIsEditing(true);
     }
   };
 
@@ -178,157 +262,355 @@ export default function StaffDetailPage() {
 
   const handleCancelEdit = () => {
     if (JSON.stringify(editData) !== JSON.stringify(staff)) {
-      if (!window.confirm("Bạn có chắc muốn huỷ chỉnh sửa?")) return;
+      setIsConfirmingCancel(true);
+    } else {
+      setIsEditing(false);
     }
-    setIsEditing(false);
+  };
+
+  const confirmCancelEdit = () => {
+    gsap.to(cancelModalRef.current, {
+      scale: 0.8,
+      opacity: 0,
+      duration: 0.3,
+      onComplete: () => {
+        setIsConfirmingCancel(false);
+        setIsEditing(false);
+      },
+    });
+  };
+
+  const cancelConfirmCancel = () => {
+    gsap.to(cancelModalRef.current, {
+      scale: 0.8,
+      opacity: 0,
+      duration: 0.3,
+      onComplete: () => {
+        setIsConfirmingCancel(false);
+      },
+    });
   };
 
   const handleSaveEdit = () => {
     if (!editData) return;
     setStaff(editData);
     setIsEditing(false);
-    alert("Đã cập nhật thông tin!");
+    handleShowNotification('Đã cập nhật thông tin!', 'success');
   };
 
   if (!staff) return <div className="p-6">Không tìm thấy nhân viên</div>;
 
   return (
-    <div className="p-6 w-full max-w-screen-xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8 border">
-        <h1 className="text-3xl font-bold text-gray-800">Chi tiết nhân viên #{id}</h1>
+    <div className="p-4 md:p-6 w-full max-w-screen-xl mx-auto">
+        {notification.visible && <Notification message={notification.message} type={notification.type} onClose={handleHideNotification} />}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-16">
-          <InfoRow label="Mã nhân viên" value={staff.staffCode} />
-          <InfoRow label="Tên" value={staff.name} />
-          <InfoRow label="Giới tính" value={staff.gender} />
-          <InfoRow label="Ngày sinh" value={staff.birthday} />
-          <InfoRow label="Chức vụ" value={staff.position} />
-          <InfoRow label="Thời gian vào làm" value={staff.createdAt} />
-          <InfoRow label="Số điện thoại" value={staff.phone} />
-          <InfoRow label="Gmail" value={staff.email} />
-          <InfoRow
-            label="Mật khẩu"
-            value={showPassword ? staff.password || "" : "********"}
-            trailing={
+        <div ref={detailRef} className="bg-white rounded-2xl shadow-xl p-8 space-y-4 border">
+            <div className="flex items-center justify-between border-b pb-2 mb-2">
+                <div className="flex items-center gap-4">
+                    <button onClick={() => router.back()} className="flex items-center text-gray-600 hover:text-blue-600 transition-colors">
+                        <ArrowLeft size={24} />
+                    </button>
+                    <h1 className="text-3xl font-bold text-gray-800">
+                        Chi tiết nhân viên #{staff.id}
+                    </h1>
+                </div>
+                <div className="flex gap-4">
+                    {!isEditing ? (
+                        <>
+                            <button
+                                onClick={handleOpenEdit}
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow transition-all duration-300 transform hover:scale-105"
+                            >
+                                <Edit size={16} /> Chỉnh sửa
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow transition-all duration-300 transform hover:scale-105"
+                            >
+                                <Trash2 size={16} /> Xoá
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button
+                                onClick={handleCancelEdit}
+                                className="flex items-center gap-2 bg-gray-300 hover:bg-gray-400 text-gray-800 px-5 py-2 rounded-lg text-sm font-semibold shadow transition-all duration-300 transform hover:scale-105"
+                            >
+                                <X size={16} /> Huỷ
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow transition-all duration-300 transform hover:scale-105"
+                            >
+                                <Save size={16} /> Lưu
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <EditableInfoCard
+                    label="Mã nhân viên"
+                    name="staffCode"
+                    value={staff.staffCode}
+                    icon={User}
+                    isEditing={isEditing}
+                    editValue={editData?.staffCode || ""}
+                    onEditChange={handleEditChange}
+                />
+                <EditableInfoCard
+                    label="Họ và tên"
+                    name="name"
+                    value={staff.name}
+                    icon={User}
+                    isEditing={isEditing}
+                    editValue={editData?.name || ""}
+                    onEditChange={handleEditChange}
+                />
+                <EditableInfoCard
+                    label="Giới tính"
+                    name="gender"
+                    value={staff.gender}
+                    icon={Info}
+                    isEditing={isEditing}
+                    editValue={editData?.gender || ""}
+                    onEditChange={handleEditChange}
+                    type="select"
+                    options={genders}
+                />
+                <EditableInfoCard
+                    label="Ngày sinh"
+                    name="birthday"
+                    value={formatDate(staff.birthday)}
+                    icon={Calendar}
+                    isEditing={isEditing}
+                    editValue={editData?.birthday || ""}
+                    onEditChange={handleEditChange}
+                    type="date"
+                />
+                <EditableInfoCard
+                    label="Chức vụ"
+                    name="position"
+                    value={staff.position}
+                    icon={Award}
+                    isEditing={isEditing}
+                    editValue={editData?.position || ""}
+                    onEditChange={handleEditChange}
+                    type="select"
+                    options={positions}
+                />
+                <EditableInfoCard
+                    label="Thời gian vào làm"
+                    name="createdAt"
+                    value={formatDateTime(staff.createdAt)}
+                    icon={Calendar}
+                    isEditing={isEditing}
+                    editValue={editData?.createdAt.substring(0, 10) || ""}
+                    onEditChange={handleEditChange}
+                    type="date"
+                />
+                <EditableInfoCard
+                    label="Số điện thoại"
+                    name="phone"
+                    value={staff.phone}
+                    icon={Phone}
+                    isEditing={isEditing}
+                    editValue={editData?.phone || ""}
+                    onEditChange={handleEditChange}
+                    type="text"
+                />
+                <EditableInfoCard
+                    label="Email"
+                    name="email"
+                    value={staff.email}
+                    icon={Mail}
+                    isEditing={isEditing}
+                    editValue={editData?.email || ""}
+                    onEditChange={handleEditChange}
+                    type="email"
+                />
+                <EditableInfoCard
+                    label="Mật khẩu"
+                    name="password"
+                    value={showPassword ? staff.password || "" : "********"}
+                    icon={Lock}
+                    isEditing={isEditing}
+                    editValue={editData?.password || ""}
+                    onEditChange={handleEditChange}
+                    type={showPassword ? "text" : "password"}
+                    toggleVisibility={() => setShowPassword(!showPassword)}
+                    showPassword={showPassword}
+                />
+            </div>
+        </div>
+
+        {isConfirmingDelete && (
+            <ConfirmationModal
+                ref={deleteModalRef}
+                onConfirm={confirmDelete}
+                onCancel={cancelDelete}
+                title="Xác nhận xoá nhân viên"
+                message="Bạn có chắc chắn muốn xoá nhân viên này? Thao tác này không thể hoàn tác."
+                confirmText="Xoá"
+                cancelText="Huỷ"
+                color="red"
+            />
+        )}
+
+        {isConfirmingCancel && (
+            <ConfirmationModal
+                ref={cancelModalRef}
+                onConfirm={confirmCancelEdit}
+                onCancel={cancelConfirmCancel}
+                title="Huỷ chỉnh sửa"
+                message="Bạn có chắc muốn huỷ chỉnh sửa? Mọi thay đổi sẽ không được lưu."
+                confirmText="Huỷ chỉnh sửa"
+                cancelText="Tiếp tục chỉnh sửa"
+                color="yellow"
+            />
+        )}
+    </div>
+  );
+}
+
+interface EditableInfoCardProps {
+  label: string;
+  name: string;
+  value: React.ReactNode;
+  icon: React.ElementType;
+  isEditing: boolean;
+  editValue: string | number;
+  onEditChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  type?: string;
+  options?: string[];
+  toggleVisibility?: () => void;
+  showPassword?: boolean;
+}
+
+function EditableInfoCard({
+  label,
+  name,
+  value,
+  icon: Icon,
+  isEditing,
+  editValue,
+  onEditChange,
+  type = "text",
+  options = [],
+  toggleVisibility,
+  showPassword = false,
+}: EditableInfoCardProps) {
+  return (
+    <div className={`p-4 rounded-lg border transition-all duration-300 ${isEditing ? "bg-blue-50 border-blue-200" : "bg-gray-50 hover:shadow-md"}`}>
+      <div className="flex items-center gap-4 mb-2">
+        <div className="p-2 bg-gray-200 rounded-full">
+          <Icon size={20} className="text-gray-600" />
+        </div>
+        <span className="text-sm text-gray-500 font-medium">{label}</span>
+      </div>
+      {isEditing ? (
+        <div className="relative">
+          {type === "select" ? (
+            <select
+              name={name}
+              value={editValue}
+              onChange={onEditChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+            >
+              {options.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type={type}
+              name={name}
+              value={editValue}
+              onChange={onEditChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+            />
+          )}
+          {name === "password" && toggleVisibility && (
               <button
+                type="button"
+                onClick={toggleVisibility}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <span className="text-base font-semibold text-gray-800 px-4 py-2 block">
+            {value}
+          </span>
+          {name === "password" && toggleVisibility && (
+              <button
+                type="button"
+                onClick={toggleVisibility}
                 className="text-sm text-blue-600 hover:underline"
-                onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? "Ẩn" : "Hiện"}
               </button>
-            }
-          />
+          )}
         </div>
+      )}
+    </div>
+  );
+}
 
-        <div className="flex justify-end gap-4 pt-6 border-t mt-6">
-          <button
-            onClick={handleDelete}
-            className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow"
-          >
-            Xoá nhân viên
-          </button>
-          <button
-            onClick={() => setIsEditing(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow"
-          >
-            Chỉnh sửa
-          </button>
-        </div>
+interface ConfirmationModalProps {
+  onConfirm: () => void;
+  onCancel: () => void;
+  title: string;
+  message: string;
+  confirmText: string;
+  cancelText: string;
+  color: "red" | "yellow";
+}
 
-        {isEditing && editData && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/20">
-            <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl p-8 relative">
-              <button
-                onClick={handleCancelEdit}
-                className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-2xl font-bold"
-              >
-                ×
-              </button>
-
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-                Chỉnh sửa thông tin nhân viên
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[
-                  { name: "staffCode", label: "Mã nhân viên", type: "text" },
-                  { name: "name", label: "Tên", type: "text" },
-                  { name: "gender", label: "Giới tính", type: "select", options: genders },
-                  { name: "birthday", label: "Ngày sinh", type: "date" },
-                  { name: "position", label: "Chức vụ", type: "select", options: positions },
-                  { name: "createdAt", label: "Thời gian vào làm", type: "date" },
-                  { name: "phone", label: "Số điện thoại", type: "text" },
-                  { name: "email", label: "Gmail", type: "email" },
-                  { name: "password", label: "Mật khẩu", type: "text" },
-                ].map((field) => (
-                  <div key={field.name}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {field.label}
-                    </label>
-                    {field.type === "select" ? (
-                      <select
-                        name={field.name}
-                        value={(editData as any)[field.name]}
-                        onChange={handleEditChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        {(field.options || []).map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type={field.type}
-                        name={field.name}
-                        value={(editData as any)[field.name]}
-                        onChange={handleEditChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end gap-3 pt-6 border-t mt-6">
-                <button
-                  onClick={handleCancelEdit}
-                  className="px-4 py-2 text-gray-700 hover:text-gray-900"
-                >
-                  Huỷ
-                </button>
-                <button
-                  onClick={handleSaveEdit}
-                  className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow"
-                >
-                  Lưu
-                </button>
-              </div>
+const ConfirmationModal = React.forwardRef<
+  HTMLDivElement,
+  ConfirmationModalProps
+>(
+  (
+    { onConfirm, onCancel, title, message, confirmText, cancelText, color },
+    ref
+  ) => {
+    const isRed = color === "red";
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/20">
+        <div ref={ref} className="bg-white rounded-2xl shadow-2xl p-8 relative w-full max-w-md mx-auto">
+          <div className="flex flex-col items-center text-center">
+            <div className={`p-4 rounded-full ${isRed ? "bg-red-100" : "bg-amber-100"}`}>
+              <Info size={28} className={isRed ? "text-red-600" : "text-amber-600"} />
             </div>
+            <h3 className="text-xl font-bold text-gray-900 mt-4">{title}</h3>
+            <p className="text-gray-600 mt-2">{message}</p>
           </div>
-        )}
+          <div className="flex justify-center gap-4 mt-6">
+            <button
+              onClick={onCancel}
+              className="px-5 py-2 text-gray-700 hover:text-gray-900 transition-all duration-200"
+            >
+              {cancelText}
+            </button>
+            <button
+              onClick={onConfirm}
+              className={`px-5 py-2 rounded-lg text-white text-sm font-semibold shadow transition-all duration-200 transform hover:scale-105 ${
+                isRed ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"
+              }`}
+            >
+              {confirmText}
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function InfoRow({
-  label,
-  value,
-  trailing,
-}: {
-  label: string;
-  value: string | undefined;
-  trailing?: React.ReactNode;
-}) {
-  return (
-    <div className="bg-gray-50 rounded-lg px-4 py-3 border flex items-center justify-between">
-      <div className="flex flex-col">
-        <span className="text-sm text-gray-500 font-medium">{label}</span>
-        <span className="text-base font-semibold text-gray-800">{value}</span>
-      </div>
-      {trailing && <div className="ml-4">{trailing}</div>}
-    </div>
-  );
-}
+    );
+  }
+);
+ConfirmationModal.displayName = "ConfirmationModal";

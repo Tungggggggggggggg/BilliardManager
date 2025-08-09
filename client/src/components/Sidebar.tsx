@@ -55,7 +55,7 @@ const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 bg-opacity-90 backdrop-blur-md text-white h-full flex flex-col p-6 shadow-xl border-r border-slate-800">
+    <aside className="w-64 bg-slate-900 bg-opacity-90 backdrop-blur-md text-white h-screen flex flex-col p-6 shadow-xl border-r border-slate-800">
       <div className="flex items-center gap-3 mb-10">
         <span className="text-3xl">🎱</span>
         <h2 className="text-xl font-bold tracking-wide text-white">
@@ -69,26 +69,25 @@ const Sidebar: React.FC = () => {
           const Icon = item.icon;
 
           return (
-<Link
-  key={item.href}
-  href={item.href}
-  className={`group flex items-center gap-2 pl-3 pr-4 py-2 rounded-r-full transition-all duration-300 ease-in-out cursor-pointer
-    ${
-      isActive
-        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
-        : "hover:bg-slate-800 text-slate-300"
-    }`}
->
-  <Icon
-    className={`w-5 h-5 transition-transform duration-300 ${
-      isActive ? "scale-110" : "group-hover:text-white"
-    }`}
-  />
-  <span className={`text-sm font-medium`}>
-    {item.name}
-  </span>
-</Link>
-
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`group flex items-center gap-2 pl-3 pr-4 py-2 rounded-r-full transition-all duration-300 ease-in-out cursor-pointer
+                ${
+                  isActive
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
+                    : "hover:bg-slate-800 text-slate-300"
+                }`}
+            >
+              <Icon
+                className={`w-5 h-5 transition-transform duration-300 ${
+                  isActive ? "scale-110" : "group-hover:text-white"
+                }`}
+              />
+              <span className={`text-sm font-medium`}>
+                {item.name}
+              </span>
+            </Link>
           );
         })}
       </nav>
