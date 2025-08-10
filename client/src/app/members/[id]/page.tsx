@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { formatDateTime } from "@/lib/formatDateTime";
 import { useParams, useRouter } from "next/navigation";
+import api from "@/utils/api";
+import ConfirmationModal from "@/components/common/ConfirmationModal";
 import {
   User,
   Phone,
@@ -59,141 +62,39 @@ interface NotificationState {
   type: 'success' | 'error' | 'info';
 }
 
-const formatDate = (dateString: string): string => {
-  if (!dateString) return '';
-  const [year, month, day] = dateString.split('-');
-  return `${day}/${month}/${year}`;
-};
 
 
 export default function MemberDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-
-  const members = [
-    {
-      member_id: 1,
-      full_name: "Nguyễn Văn A",
-      gender: "Nam",
-      birthdate: "1990-01-01",
-      phone: "0123456789",
-      email: "a@example.com",
-      total_spent: 7200000,
-      join_date: "2023-05-10",
-    },
-    {
-      member_id: 2,
-      full_name: "Trần Thị B",
-      gender: "Nữ",
-      birthdate: "1995-07-15",
-      phone: "0987654321",
-      email: "b@example.com",
-      total_spent: 12000000,
-      join_date: "2022-10-03",
-    },
-    {
-      member_id: 3,
-      full_name: "Lê Văn C",
-      gender: "Nam",
-      birthdate: "1988-03-20",
-      phone: "0901234567",
-      email: "c@example.com",
-      total_spent: 3400000,
-      join_date: "2023-01-22",
-    },
-    {
-      member_id: 4,
-      full_name: "Phạm Thị D",
-      gender: "Nữ",
-      birthdate: "1992-09-10",
-      phone: "0976543210",
-      email: "d@example.com",
-      total_spent: 5100000,
-      join_date: "2023-08-01",
-    },
-    {
-      member_id: 5,
-      full_name: "Hoàng Văn E",
-      gender: "Nam",
-      birthdate: "1985-12-12",
-      phone: "0911223344",
-      email: "e@example.com",
-      total_spent: 9500000,
-      join_date: "2024-03-17",
-    },
-    {
-      member_id: 6,
-      full_name: "Đỗ Thị F",
-      gender: "Nữ",
-      birthdate: "1999-11-11",
-      phone: "0900112233",
-      email: "f@example.com",
-      total_spent: 2000000,
-      join_date: "2024-01-05",
-    },
-    {
-      member_id: 7,
-      full_name: "Ngô Văn G",
-      gender: "Nam",
-      birthdate: "1980-04-18",
-      phone: "0933344556",
-      email: "g@example.com",
-      total_spent: 10000000,
-      join_date: "2023-11-20",
-    },
-    {
-      member_id: 8,
-      full_name: "Trịnh Thị H",
-      gender: "Nữ",
-      birthdate: "1993-06-06",
-      phone: "0911225566",
-      email: "h@example.com",
-      total_spent: 4800000,
-      join_date: "2023-06-30",
-    },
-    {
-      member_id: 9,
-      full_name: "Bùi Văn I",
-      gender: "Nam",
-      birthdate: "1987-08-25",
-      phone: "0900778899",
-      email: "i@example.com",
-      total_spent: 3000000,
-      join_date: "2024-05-05",
-    },
-    {
-      member_id: 10,
-      full_name: "Nguyễn Thị J",
-      gender: "Nữ",
-      birthdate: "1996-02-14",
-      phone: "0922334455",
-      email: "j@example.com",
-      total_spent: 12500000,
-      join_date: "2023-09-09",
-    },
-  ];
-
-  const member =
-    members.find((m) => m.member_id === parseInt(id as string)) || members[0];
-  const [currentMember, setCurrentMember] = useState<MemberData>(member);
-
+  const [currentMember, setCurrentMember] = useState<MemberData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({ ...member });
+  const [editData, setEditData] = useState<MemberData | null>(null);
+  const [notification, setNotification] = useState<NotificationState>({ visible: false, message: '', type: 'info' });
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isConfirmingCancel, setIsConfirmingCancel] = useState(false);
-  const [notification, setNotification] = useState<NotificationState>({ visible: false, message: '', type: 'info' });
-
   const detailRef = useRef(null);
   const deleteModalRef = useRef(null);
   const cancelModalRef = useRef(null);
 
   useEffect(() => {
+    if (!id) return;
+    api.get(`/members/${id}`)
+      .then(res => setCurrentMember(res.data))
+      .catch((err) => {
+        if (err.response && err.response.status === 404) {
+          handleShowNotification('Không tìm thấy hội viên!', 'error');
+        } else {
+          console.error('API error:', err);
+          handleShowNotification('Lỗi khi tải dữ liệu hội viên!', 'error');
+        }
+      });
     gsap.fromTo(
       detailRef.current,
       { opacity: 0, y: 50 },
       { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
     );
-  }, []);
+  }, [id]);
 
   const handleShowNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -204,18 +105,25 @@ export default function MemberDetailPage() {
   };
 
   const handleOpenEdit = () => {
-    setEditData({ ...currentMember });
-    setIsEditing(true);
+    if (currentMember) {
+      setEditData({ ...currentMember });
+      setIsEditing(true);
+    }
   };
 
   const handleEditChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
+    if (!editData) return;
     const { name, value } = e.target;
-    setEditData({ ...editData, [name]: value });
+    setEditData({ ...editData, [name]: value } as MemberData);
   };
 
   const handleCancelEdit = () => {
+    if (!editData || !currentMember) {
+      setIsEditing(false);
+      return;
+    }
     const isChanged = JSON.stringify(editData) !== JSON.stringify(currentMember);
     if (isChanged) {
       setIsConfirmingCancel(true);
@@ -224,29 +132,42 @@ export default function MemberDetailPage() {
     }
   };
 
-  const handleSaveEdit = () => {
-    setCurrentMember(editData);
-    setIsEditing(false);
-    handleShowNotification('Đã cập nhật thông tin hội viên!', 'success');
+  const handleSaveEdit = async () => {
+    if (!editData) return;
+    try {
+      await api.put(`/members/${id}`, editData);
+      setCurrentMember(editData);
+      setIsEditing(false);
+      handleShowNotification('Đã cập nhật thông tin hội viên!', 'success');
+    } catch (err) {
+      console.error('API error:', err);
+      handleShowNotification('Lỗi khi cập nhật hội viên!', 'error');
+    }
   };
 
   const handleDelete = () => {
     setIsConfirmingDelete(true);
   };
 
-  const confirmDelete = () => {
-    gsap.to(deleteModalRef.current, {
-      scale: 0.8,
-      opacity: 0,
-      duration: 0.3,
-      onComplete: () => {
-        setIsConfirmingDelete(false);
-        handleShowNotification('Đã xoá hội viên thành công!', 'success');
-        setTimeout(() => {
-          router.push("/members");
-        }, 1500);
-      },
-    });
+  const confirmDelete = async () => {
+    try {
+      await api.delete(`/members/${id}`);
+      gsap.to(deleteModalRef.current, {
+        scale: 0.8,
+        opacity: 0,
+        duration: 0.3,
+        onComplete: () => {
+          setIsConfirmingDelete(false);
+          handleShowNotification('Đã xoá hội viên thành công!', 'success');
+          setTimeout(() => {
+            router.push("/members");
+          }, 1500);
+        },
+      });
+    } catch (err) {
+      console.error('API error:', err);
+      handleShowNotification('Lỗi khi xoá hội viên!', 'error');
+    }
   };
 
   const cancelDelete = () => {
@@ -283,7 +204,17 @@ export default function MemberDetailPage() {
     });
   };
 
-  const rank = rankDetails(currentMember.total_spent);
+  const rank = currentMember ? rankDetails(currentMember.total_spent) : null;
+
+  if (!currentMember) {
+    return (
+      <div className="p-4 md:p-6 w-full max-w-screen-xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border text-center text-gray-500">
+          Đang tải dữ liệu hội viên...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 w-full max-w-screen-xl mx-auto">
@@ -347,7 +278,7 @@ export default function MemberDetailPage() {
             value={currentMember.full_name}
             icon={User}
             isEditing={isEditing}
-            editValue={editData.full_name}
+            editValue={editData?.full_name || ''}
             onEditChange={handleEditChange}
           />
           <EditableInfoCard
@@ -356,17 +287,17 @@ export default function MemberDetailPage() {
             value={currentMember.gender}
             icon={Info}
             isEditing={isEditing}
-            editValue={editData.gender}
+            editValue={editData?.gender || ''}
             onEditChange={handleEditChange}
             type="select"
           />
           <EditableInfoCard
             label="Ngày sinh"
             name="birthdate"
-            value={formatDate(currentMember.birthdate)}
+            value={formatDateTime(currentMember.birthdate)}
             icon={Calendar}
             isEditing={isEditing}
-            editValue={editData.birthdate}
+            editValue={editData?.birthdate || ''}
             onEditChange={handleEditChange}
             type="date"
           />
@@ -376,7 +307,7 @@ export default function MemberDetailPage() {
             value={currentMember.phone}
             icon={Phone}
             isEditing={isEditing}
-            editValue={editData.phone}
+            editValue={editData?.phone || ''}
             onEditChange={handleEditChange}
           />
           <EditableInfoCard
@@ -385,23 +316,25 @@ export default function MemberDetailPage() {
             value={currentMember.email}
             icon={Mail}
             isEditing={isEditing}
-            editValue={editData.email}
+            editValue={editData?.email || ''}
             onEditChange={handleEditChange}
           />
           <MemberInfoCard
             label="Ngày tham gia"
-            value={formatDate(currentMember.join_date)} 
+            value={formatDateTime(currentMember.join_date)}
             icon={Calendar}
           />
           <MemberInfoCard
             label="Hạng hội viên"
             value={
-              <span
-                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${rank.bg} ${rank.color}`}
-              >
-                <Award size={16} />
-                {rank.name}
-              </span>
+              rank && (
+                <span
+                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${rank.bg} ${rank.color}`}
+                >
+                  <Award size={16} />
+                  {rank.name}
+                </span>
+              )
             }
             icon={Award}
           />
@@ -411,7 +344,7 @@ export default function MemberDetailPage() {
             value={currentMember.total_spent.toLocaleString("vi-VN") + " VND"}
             icon={DollarSign}
             isEditing={isEditing}
-            editValue={editData.total_spent}
+            editValue={editData?.total_spent || 0}
             onEditChange={handleEditChange}
             type="number"
           />
@@ -535,66 +468,4 @@ function EditableInfoCard({
   );
 }
 
-interface ConfirmationModalProps {
-  onConfirm: () => void;
-  onCancel: () => void;
-  title: string;
-  message: string;
-  confirmText: string;
-  cancelText: string;
-  color: "red" | "yellow";
-}
 
-const ConfirmationModal = React.forwardRef<
-  HTMLDivElement,
-  ConfirmationModalProps
->(
-  (
-    { onConfirm, onCancel, title, message, confirmText, cancelText, color },
-    ref
-  ) => {
-    const isRed = color === "red";
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/20">
-        <div
-          ref={ref}
-          className="bg-white rounded-2xl shadow-2xl p-8 relative w-full max-w-md mx-auto"
-        >
-          <div className="flex flex-col items-center text-center">
-            <div
-              className={`p-4 rounded-full ${
-                isRed ? "bg-red-100" : "bg-amber-100"
-              }`}
-            >
-              <Info
-                size={28}
-                className={isRed ? "text-red-600" : "text-amber-600"}
-              />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mt-4">{title}</h3>
-            <p className="text-gray-600 mt-2">{message}</p>
-          </div>
-          <div className="flex justify-center gap-4 mt-6">
-            <button
-              onClick={onCancel}
-              className="px-5 py-2 text-gray-700 hover:text-gray-900 transition-all duration-200"
-            >
-              {cancelText}
-            </button>
-            <button
-              onClick={onConfirm}
-              className={`px-5 py-2 rounded-lg text-white text-sm font-semibold shadow transition-all duration-200 transform hover:scale-105 ${
-                isRed
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "bg-amber-600 hover:bg-amber-700"
-              }`}
-            >
-              {confirmText}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-);
-ConfirmationModal.displayName = "ConfirmationModal";

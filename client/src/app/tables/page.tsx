@@ -1,17 +1,73 @@
 "use client";
 
+
 import React, { useState, useEffect, useRef } from "react";
 import { Table, Clock, DollarSign, Search, X } from "lucide-react";
 import gsap from "gsap";
 
+type TableStatus = "available" | "occupied" | "reserved";
+interface TableData {
+    id: number;
+    status: TableStatus;
+    usageTime: number;
+    revenue: number;
+}
+
+function normalizeTableStatus(status: string): TableStatus {
+    switch (status?.trim()) {
+        case "Trống":
+            return "available";
+        case "Đang dùng":
+            return "occupied";
+        case "Đã đặt":
+            return "reserved";
+        default:
+            return "available";
+    }
+}
+
+type RawTableApi = {
+    id?: number | string;
+    status?: string;
+    usageTime?: number | string;
+    usagetime?: number | string;
+    revenue?: number | string;
+};
+
+function isRawTableApi(obj: unknown): obj is RawTableApi {
+    return (
+        typeof obj === 'object' && obj !== null &&
+        ('id' in obj) && ('status' in obj)
+    );
+}
+
+function normalizeTableApiData(t: unknown): TableData {
+    if (isRawTableApi(t)) {
+        return {
+            id: t.id !== undefined ? Number(t.id) : 0,
+            status: normalizeTableStatus(t.status ?? ''),
+            usageTime: t.usageTime !== undefined ? Number(t.usageTime) : (t.usagetime !== undefined ? Number(t.usagetime) : 0),
+            revenue: t.revenue !== undefined ? Number(t.revenue) : 0,
+        };
+    }
+    return { id: 0, status: 'available', usageTime: 0, revenue: 0 };
+}
+
 const TablesManagement: React.FC = () => {
-    const [tables, setTables] = useState([
-        { id: 1, status: "available", usageTime: 0, revenue: 0 },
-        { id: 2, status: "occupied", usageTime: 1.5, revenue: 150000 },
-        { id: 3, status: "reserved", usageTime: 0, revenue: 0 },
-        { id: 4, status: "occupied", usageTime: 2.0, revenue: 200000 },
-        { id: 5, status: "available", usageTime: 0, revenue: 0 },
-    ]);
+    const [tables, setTables] = useState<TableData[]>([]);
+            const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+            useEffect(() => {
+                fetch(`${API_BASE}/api/tables`)
+                    .then(res => res.json())
+                    .then((data: unknown) => {
+                        if (Array.isArray(data)) {
+                            setTables(data.map(normalizeTableApiData));
+                        } else {
+                            setTables([]);
+                        }
+                    })
+                    .catch(() => setTables([]));
+            }, []);
     const [searchTerm, setSearchTerm] = useState("");
 
     const [selectedTable, setSelectedTable] = useState<number | null>(null);
@@ -20,24 +76,18 @@ const TablesManagement: React.FC = () => {
     const tableCardsRef = useRef<HTMLDivElement[]>([]);
     const sidebarRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            gsap.fromTo(
-                tableCardsRef.current,
-                {
-                    opacity: 0,
-                    scale: 0.9,
-                },
-                {
-                    opacity: 1,
-                    scale: 1,
-                    duration: 0.01,
-                    stagger: 0.15,
-                    ease: "power2.out",
+        useEffect(() => {
+            if (typeof window !== "undefined") {
+                const validRefs = tableCardsRef.current.filter(Boolean);
+                if (validRefs.length > 0) {
+                    gsap.fromTo(
+                        validRefs,
+                        { opacity: 0, scale: 0.9 },
+                        { opacity: 1, scale: 1, duration: 0.01, stagger: 0.15, ease: "power2.out" }
+                    );
                 }
-            );
-        }
-    }, []);
+            }
+        }, [tables]);
 
     useEffect(() => {
         if (sidebarRef.current) {
@@ -69,22 +119,20 @@ const TablesManagement: React.FC = () => {
         table.id.toString().includes(searchTerm)
     );
 
-    const toggleStatus = (id: number) => {
-        setTables((prev) =>
-            prev.map((table) =>
-                table.id === id
-                    ? {
-                          ...table,
-                          status:
-                              table.status === "available"
-                                  ? "occupied"
-                                  : table.status === "occupied"
-                                  ? "available"
-                                  : table.status,
-                      }
-                    : table
-            )
-        );
+    const toggleStatus = async (id: number) => {
+        const table = tables.find((t) => t.id === id);
+        if (!table) return;
+        let newStatus: TableStatus = table.status;
+        if (table.status === "available") newStatus = "occupied";
+        else if (table.status === "occupied") newStatus = "available";
+        import('@/utils/api').then(({ default: api }) => {
+            api.put(`/tables/${id}`, { ...table, status: newStatus === "available" ? "Trống" : newStatus === "occupied" ? "Đang dùng" : "Đã đặt" })
+                .then(res => {
+                    const updated = normalizeTableApiData(res.data);
+                    setTables((prev) => prev.map((t) => t.id === id ? updated : t));
+                })
+                .catch(() => {});
+        });
     };
 
     const handlePayment = (id: number) => {
@@ -107,23 +155,31 @@ const TablesManagement: React.FC = () => {
         }
     };
 
-    const confirmPayment = () => {
-        console.log(
-            `Thanh toán cho bàn ${selectedTable} với doanh thu ${formatCurrency(
-                tables.find((t) => t.id === selectedTable)?.revenue || 0
-            )}`
-        );
-        setShowPaymentModal(false);
-        setSelectedTable(null);
+    const confirmPayment = async () => {
+        const table = tables.find((t) => t.id === selectedTable);
+        if (!table) return;
+        import('@/utils/api').then(({ default: api }) => {
+            api.post(`/tables/${selectedTable}/pay`, { revenue: table.revenue, usageTime: table.usageTime })
+                .then(() => {
+                    setShowPaymentModal(false);
+                    setSelectedTable(null);
+                    api.get('/tables')
+                        .then(res => {
+                            if (Array.isArray(res.data)) {
+                                setTables(res.data.map(normalizeTableApiData));
+                            } else {
+                                setTables([]);
+                            }
+                        });
+                })
+                .catch(() => {});
+        });
     };
+
 
     return (
         <div className="p-8 bg-gradient-to-br from-blue-50 via-white to-green-50 flex-1 overflow-auto relative">
-            <div
-                className={`max-w-7xl mx-auto transition-all duration-300 ${
-                    selectedTable ? "mr-96" : ""
-                }`}
-            >
+            <div className={`max-w-7xl mx-auto transition-all duration-300 ${selectedTable ? "mr-96" : ""}`}>
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-3xl font-bold text-blue-900 flex items-center gap-2">
                         <Table className="w-8 h-8" /> Quản lý Bàn
@@ -139,7 +195,6 @@ const TablesManagement: React.FC = () => {
                         <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
                     </div>
                 </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredTables.map((table, index) => (
                         <div
@@ -157,9 +212,7 @@ const TablesManagement: React.FC = () => {
                             onClick={() => setSelectedTable(table.id)}
                         >
                             <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                    Bàn {table.id}
-                                </h3>
+                                <h3 className="text-lg font-semibold text-gray-900">Bàn {table.id}</h3>
                                 <span
                                     className={`px-2 py-1 rounded-full text-sm font-medium ${
                                         table.status === "available"
@@ -178,14 +231,10 @@ const TablesManagement: React.FC = () => {
                             </div>
                             <div className="space-y-2 text-sm text-gray-600">
                                 <p className="flex items-center gap-1">
-                                    <Clock className="w-4 h-4" /> Thời gian:{" "}
-                                    {table.usageTime > 0
-                                        ? `${table.usageTime}h`
-                                        : "Chưa sử dụng"}
+                                    <Clock className="w-4 h-4" /> Thời gian: {table.usageTime > 0 ? `${table.usageTime}h` : "Chưa sử dụng"}
                                 </p>
                                 <p className="flex items-center gap-1">
-                                    <DollarSign className="w-4 h-4" /> Doanh
-                                    thu: {formatCurrency(table.revenue)}
+                                    <DollarSign className="w-4 h-4" /> Doanh thu: {formatCurrency(table.revenue)}
                                 </p>
                             </div>
                             <button
@@ -196,9 +245,7 @@ const TablesManagement: React.FC = () => {
                                 className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 aria-label={`Chuyển trạng thái bàn ${table.id}`}
                             >
-                                {table.status === "available"
-                                    ? "Bắt đầu"
-                                    : "Kết thúc"}
+                                {table.status === "available" ? "Bắt đầu" : "Kết thúc"}
                             </button>
                         </div>
                     ))}
@@ -218,30 +265,29 @@ const TablesManagement: React.FC = () => {
                         <div className="space-y-4 text-sm text-gray-700">
                             <p>
                                 <strong>Trạng thái:</strong>{" "}
-                                {tables.find((t) => t.id === selectedTable)
-                                    ?.status === "available"
-                                    ? "Trống"
-                                    : tables.find((t) => t.id === selectedTable)
-                                          ?.status === "occupied"
-                                    ? "Đang dùng"
-                                    : "Đã đặt"}
+                                {(() => {
+                                    const t = tables.find((t) => t.id === selectedTable);
+                                    if (!t) return "Không rõ";
+                                    if (t.status === "available") return "Trống";
+                                    if (t.status === "occupied") return "Đang dùng";
+                                    return "Đã đặt";
+                                })()}
                             </p>
                             <p>
                                 <strong>Thời gian sử dụng:</strong>{" "}
-                                {tables.find((t) => t.id === selectedTable)
-                                    ?.usageTime > 0
-                                    ? `${
-                                          tables.find(
-                                              (t) => t.id === selectedTable
-                                          )?.usageTime
-                                      }h`
-                                    : "Chưa sử dụng"}
+                                {(() => {
+                                    const t = tables.find((t) => t.id === selectedTable);
+                                    if (t && t.usageTime > 0) {
+                                        return `${t.usageTime}h`;
+                                    } else {
+                                        return "Chưa sử dụng";
+                                    }
+                                })()}
                             </p>
                             <p>
                                 <strong>Doanh thu:</strong>{" "}
                                 {formatCurrency(
-                                    tables.find((t) => t.id === selectedTable)
-                                        ?.revenue || 0
+                                    tables.find((t) => t.id === selectedTable)?.revenue || 0
                                 )}
                             </p>
                         </div>
@@ -298,14 +344,14 @@ const TablesManagement: React.FC = () => {
                             </p>
                             <p>
                                 <strong>Thời gian sử dụng:</strong>{" "}
-                                {tables.find((t) => t.id === selectedTable)
-                                    ?.usageTime > 0
-                                    ? `${
-                                          tables.find(
-                                              (t) => t.id === selectedTable
-                                          )?.usageTime
-                                      }h`
-                                    : "Chưa sử dụng"}
+                                    {(() => {
+                                        const t = tables.find((t) => t.id === selectedTable);
+                                        if (t && t.usageTime > 0) {
+                                            return `${t.usageTime}h`;
+                                        } else {
+                                            return "Chưa sử dụng";
+                                        }
+                                    })()}
                             </p>
                         </div>
                         <div className="mt-6 flex justify-end gap-4">
@@ -338,7 +384,9 @@ const TablesManagement: React.FC = () => {
     );
 };
 
-const formatCurrency = (value: number) =>
-    value.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+
+function formatCurrency(value: number) {
+    return value.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+}
 
 export default TablesManagement;

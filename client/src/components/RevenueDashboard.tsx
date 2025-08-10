@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { formatDateTime } from "@/lib/formatDateTime";
 import gsap from "gsap";
+
 import {
     ArrowUpRight,
     TrendingUp,
@@ -24,46 +26,53 @@ import {
     Legend,
 } from "recharts";
 
+type RevenueData = {
+    month: string;
+    revenue: number;
+    profit: number;
+    customers: number;
+    avgTime: number;
+};
+
+
+type RawRevenueApi = {
+    month?: string;
+    revenue?: number | string;
+    profit?: number | string;
+    customers?: number | string;
+    avgTime?: number | string;
+    avgtime?: number | string;
+};
+
+function normalizeRevenueData(arr: unknown[]): RevenueData[] {
+    function isRawRevenueApi(obj: unknown): obj is RawRevenueApi {
+        return typeof obj === 'object' && obj !== null && 'month' in obj;
+    }
+    return arr.map((item) => {
+        if (isRawRevenueApi(item)) {
+            return {
+                month: item.month ?? '',
+                revenue: item.revenue !== undefined ? Number(item.revenue) : 0,
+                profit: item.profit !== undefined ? Number(item.profit) : 0,
+                customers: item.customers !== undefined ? Number(item.customers) : 0,
+                avgTime: item.avgTime !== undefined ? Number(item.avgTime) : (item.avgtime !== undefined ? Number(item.avgtime) : 0),
+            };
+        }
+        return { month: '', revenue: 0, profit: 0, customers: 0, avgTime: 0 };
+    });
+}
+
 const RevenueDashboard: React.FC = () => {
     const [selectedPeriod, setSelectedPeriod] = useState("month");
+    const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
 
-    const revenueData = [
-        {
-            month: "Tháng 1",
-            revenue: 6800000,
-            profit: 2000000,
-            customers: 180,
-            avgTime: 2.5,
-        },
-        {
-            month: "Tháng 2",
-            revenue: 8300000, 
-            profit: 3000000,
-            customers: 210,
-            avgTime: 2.8,
-        },
-        {
-            month: "Tháng 3",
-            revenue: 7000000, 
-            profit: 2500000,
-            customers: 195,
-            avgTime: 2.3,
-        },
-        {
-            month: "Tháng 4",
-            revenue: 8500000, 
-            profit: 3500000,
-            customers: 250,
-            avgTime: 3.0,
-        },
-        {
-            month: "Tháng 5",
-            revenue: 7200000,
-            profit: 2800000,
-            customers: 220,
-            avgTime: 2.7,
-        },
-    ];
+    useEffect(() => {
+        import('@/utils/api').then(({ default: api }) => {
+            api.get(`/revenue?period=${selectedPeriod}`)
+                .then((res: { data: unknown[] }) => setRevenueData(normalizeRevenueData(res.data)))
+                .catch(() => setRevenueData([]));
+        });
+    }, [selectedPeriod]);
 
     const formatCurrency = (value: number) =>
         value.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
@@ -74,12 +83,12 @@ const RevenueDashboard: React.FC = () => {
         return `${h}h${m ? ` ${m}m` : ""}`;
     };
 
-    const CustomTooltip = ({ active, payload, label }: any) => {
+    const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { payload: RevenueData }[]; label?: string }) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload;
             return (
                 <div className="bg-blue-900 text-white px-4 py-3 rounded-xl shadow-xl border border-blue-700">
-                    <div className="font-medium text-lg mb-2">{label}</div>
+                    <div className="font-medium text-lg mb-2">{formatDateTime(label ?? "")}</div>
                     <div className="text-sm space-y-1">
                         <div className="flex justify-between items-center">
                             <span className="text-blue-200">Doanh thu:</span>
@@ -239,7 +248,7 @@ const RevenueDashboard: React.FC = () => {
                                     margin={{ top: 30, right: 30, left: 40, bottom: 5 }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e7ff" />
-                                    <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                                    <XAxis dataKey="month" axisLine={false} tickLine={false} tickFormatter={formatDateTime} />
                                     <YAxis
                                         axisLine={false}
                                         tickLine={false}
@@ -290,7 +299,7 @@ const RevenueDashboard: React.FC = () => {
                                 >
                                     <div className="flex items-center justify-between mb-2">
                                         <h4 className="font-medium text-blue-900 text-lg">
-                                            {item.month}
+                                            {formatDateTime(item.month)}
                                         </h4>
                                         <span className="text-lg font-semibold text-green-600">
                                             {formatCurrency(item.profit)}

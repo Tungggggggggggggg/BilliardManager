@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect, forwardRef } from "react";
+import { formatDateTime } from "@/lib/formatDateTime";
 import Link from "next/link";
 import { Plus, User, Award, Calendar, Phone, Info, Eye, EyeOff, Search } from "lucide-react";
 import gsap from "gsap";
 import Notification from "@/components/Notification";
+const initialStaffList: Staff[] = [];
 
 interface NotificationState {
   visible: boolean;
@@ -78,128 +80,7 @@ type Staff = {
   password: string;
 };
 
-const initialStaffList: Staff[] = [
-  {
-    id: 1,
-    staffCode: "NV001",
-    name: "Nguyễn Văn A",
-    position: "Quản lý",
-    phone: "0123456789",
-    email: "a@example.com",
-    birthday: "1990-01-01",
-    gender: "Nam",
-    createdAt: "2025-07-30 12:00:00",
-    password: "123456",
-  },
-  {
-    id: 2,
-    staffCode: "NV002",
-    name: "Trần Thị B",
-    position: "Nhân viên",
-    phone: "0987654321",
-    email: "b@example.com",
-    birthday: "1992-03-14",
-    gender: "Nữ",
-    createdAt: "2025-07-30 12:30:00",
-    password: "123456",
-  },
-  {
-    id: 3,
-    staffCode: "NV003",
-    name: "Lê Văn C",
-    position: "Bảo vệ",
-    phone: "0911223344",
-    email: "c@example.com",
-    birthday: "1988-06-20",
-    gender: "Nam",
-    createdAt: "2025-07-30 13:00:00",
-    password: "123456",
-  },
-  {
-    id: 4,
-    staffCode: "NV004",
-    name: "Phạm Thị D",
-    position: "Thu ngân",
-    phone: "0922334455",
-    email: "d@example.com",
-    birthday: "1995-11-11",
-    gender: "Nữ",
-    createdAt: "2025-07-30 13:30:00",
-    password: "123456",
-  },
-  {
-    id: 5,
-    staffCode: "NV005",
-    name: "Đỗ Minh E",
-    position: "Nhân viên",
-    phone: "0933445566",
-    email: "e@example.com",
-    birthday: "1993-04-25",
-    gender: "Nam",
-    createdAt: "2025-07-30 14:00:00",
-    password: "123456",
-  },
-  {
-    id: 6,
-    staffCode: "NV006",
-    name: "Hoàng Thị F",
-    position: "Nhân viên",
-    phone: "0944556677",
-    email: "f@example.com",
-    birthday: "1996-08-19",
-    gender: "Nữ",
-    createdAt: "2025-07-30 14:30:00",
-    password: "123456",
-  },
-  {
-    id: 7,
-    staffCode: "NV007",
-    name: "Ngô Văn G",
-    position: "Kỹ thuật",
-    phone: "0955667788",
-    email: "g@example.com",
-    birthday: "1987-12-01",
-    gender: "Nam",
-    createdAt: "2025-07-30 15:00:00",
-    password: "123456",
-  },
-  {
-    id: 8,
-    staffCode: "NV008",
-    name: "Vũ Thị H",
-    position: "Lễ tân",
-    phone: "0966778899",
-    email: "h@example.com",
-    birthday: "1998-01-09",
-    gender: "Nữ",
-    createdAt: "2025-07-30 15:30:00",
-    password: "123456",
-  },
-  {
-    id: 9,
-    staffCode: "NV009",
-    name: "Bùi Văn I",
-    position: "Tạp vụ",
-    phone: "0977889900",
-    email: "i@example.com",
-    birthday: "1980-10-15",
-    gender: "Nam",
-    createdAt: "2025-07-30 16:00:00",
-    password: "123456",
-  },
-  {
-    id: 10,
-    staffCode: "NV010",
-    name: "Trịnh Thị K",
-    position: "Nhân viên",
-    phone: "0988990011",
-    email: "k@example.com",
-    birthday: "1994-07-07",
-    gender: "Nữ",
-    createdAt: "2025-07-30 16:30:00",
-    password: "123456",
-  },
-];
+
 
 const positions = ["Quản lý", "Nhân viên", "Thu ngân", "Bảo vệ", "Kỹ thuật", "Lễ tân", "Tạp vụ"];
 const genders = ["Nam", "Nữ", "Khác"];
@@ -209,8 +90,34 @@ export default function StaffPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [isConfirmingCancel, setIsConfirmingCancel] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<NotificationState>({ visible: false, message: '', type: 'info' });
-  
+
+  const handleShowNotification = React.useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ visible: true, message, type });
+    setTimeout(() => handleHideNotification(), 3000);
+  }, []);
+
+useEffect(() => {
+  setLoading(true);
+  import('@/utils/api').then(({ default: api }) => {
+    api.get('/staff')
+      .then(res => {
+        setStaffList(res.data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setLoading(false);
+        handleShowNotification('Lỗi khi tải dữ liệu nhân viên!', 'error');
+        console.error('API error:', err);
+      });
+  });
+  gsap.fromTo(
+    mainContentRef.current,
+    { opacity: 0, y: 50 },
+    { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
+  );
+}, [handleShowNotification]);
   const [newUser, setNewUser] = useState<Omit<Staff, "id" | "createdAt"> & { password: string }>({
     staffCode: "",
     name: "",
@@ -222,11 +129,6 @@ export default function StaffPage() {
     password: "",
   });
 
-const formatDate = (dateString: string): string => {
-  if (!dateString) return '';
-  const [year, month, day] = dateString.split('-');
-  return `${day}/${month}/${year}`;
-};
   const [autoPassword, setAutoPassword] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -250,10 +152,6 @@ const formatDate = (dateString: string): string => {
     }
   }, [showModal]);
 
-  const handleShowNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ visible: true, message, type });
-    setTimeout(() => handleHideNotification(), 3000);
-  };
 
   const handleHideNotification = () => {
     setNotification({ visible: false, message: '', type: 'info' });
@@ -402,47 +300,51 @@ const formatDate = (dateString: string): string => {
         </div>
       </div>
 
-      <div ref={mainContentRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredStaffList.length > 0 ? (
-          filteredStaffList.map((staff) => (
-            <Link
-              key={staff.id}
-              href={`/staff/${staff.id}`}
-              className="block"
-            >
-              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-blue-500 rounded-full text-white">
-                    <User size={24} />
-                  </div>
-                  <div className="flex flex-col">
-                    <h3 className="text-lg font-bold text-gray-900">{staff.name}</h3>
-                    <p className="text-sm text-gray-500">{staff.position}</p>
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Award size={16} className="text-blue-500" />
-                    <span className="font-medium">Mã NV:</span> {staff.staffCode}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone size={16} className="text-blue-500" />
-                    <span className="font-medium">SĐT:</span> {staff.phone}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-blue-500" />
-                    <span className="font-medium">Ngày sinh:</span> {formatDate(staff.birthday)}
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))
-        ) : (
-          <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12 text-gray-500">
-            <p>Không tìm thấy nhân viên nào phù hợp.</p>
+<div ref={mainContentRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {loading ? (
+    <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12 text-gray-500">
+      Đang tải dữ liệu nhân viên...
+    </div>
+  ) : filteredStaffList.length > 0 ? (
+    filteredStaffList.map((staff) => (
+      <Link
+        key={staff.id}
+        href={`/staff/${staff.id}`}
+        className="block"
+      >
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-blue-500 rounded-full text-white">
+              <User size={24} />
+            </div>
+            <div className="flex flex-col">
+              <h3 className="text-lg font-bold text-gray-900">{staff.name}</h3>
+              <p className="text-sm text-gray-500">{staff.position}</p>
+            </div>
           </div>
-        )}
-      </div>
+          <div className="space-y-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2">
+              <Award size={16} className="text-blue-500" />
+              <span className="font-medium">Mã NV:</span> {staff.staffCode || staff.id}
+            </div>
+            <div className="flex items-center gap-2">
+              <Phone size={16} className="text-blue-500" />
+              <span className="font-medium">SĐT:</span> {staff.phone}
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar size={16} className="text-blue-500" />
+              <span className="font-medium">Ngày sinh:</span> {formatDateTime(staff.birthday)}
+            </div>
+          </div>
+        </div>
+      </Link>
+    ))
+  ) : (
+    <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12 text-gray-500">
+      Không tìm thấy nhân viên nào phù hợp.
+    </div>
+  )}
+</div>
 
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/20">
@@ -477,7 +379,7 @@ const formatDate = (dateString: string): string => {
                   {field.type === "select" ? (
                     <select
                       name={field.name}
-                      value={(newUser as any)[field.name]}
+                      value={newUser[field.name as keyof typeof newUser] as string}
                       onChange={handleFormChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
@@ -491,7 +393,7 @@ const formatDate = (dateString: string): string => {
                     <input
                       type={field.type}
                       name={field.name}
-                      value={field.name === "staffCode" ? field.value : (newUser as any)[field.name]}
+                      value={field.name === "staffCode" ? field.value : (newUser[field.name as keyof typeof newUser] as string)}
                       onChange={handleFormChange}
                       disabled={field.disabled}
                       className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${field.disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white border-gray-300"}`}

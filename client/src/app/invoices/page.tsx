@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef} from 'react';
+import { formatCurrency } from "@/lib/formatCurrency";
+import { formatDateTime } from "@/lib/formatDateTime";
+import ConfirmationModal from "@/components/common/ConfirmationModal";
 import {
   Plus,
   Info,
@@ -36,72 +39,29 @@ interface NotificationState {
   type: 'success' | 'error' | 'info';
 }
 
-const formatCurrency = (value: number) =>
-  value.toLocaleString('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  });
 
-const formatDate = (dateString: string): string => {
-  if (!dateString) return '';
-  const [year, month, day] = dateString.split('-');
-  return `${day}/${month}/${year}`;
-};
 
 const InvoiceManagement = () => {
-  const initialInvoices: Invoice[] = [
-    {
-      id: 'HD001',
-      customer: 'Nguyễn Văn A',
-      phone: '0123456789',
-      date: '2025-08-02',
-      status: 'Đã thanh toán',
-      items: [
-        { name: 'Pepsi', quantity: 2, price: 20000 },
-        { name: 'Sting', quantity: 1, price: 20000 },
-      ],
-      total: 60000,
-    },
-    {
-      id: 'HD002',
-      customer: 'Trần Thị B',
-      phone: '0987654321',
-      date: '2025-08-01',
-      status: 'Chưa thanh toán',
-      items: [
-        { name: 'Redbull', quantity: 1, price: 25000 },
-        { name: 'Khoai tây chiên', quantity: 1, price: 30000 },
-      ],
-      total: 55000,
-    },
-    {
-      id: 'HD003',
-      customer: 'Lê Văn C',
-      phone: '0901234567',
-      date: '2025-07-30',
-      status: 'Đã thanh toán',
-      items: [
-        { name: 'Nước suối', quantity: 3, price: 10000 },
-        { name: '555', quantity: 1, price: 40000 },
-      ],
-      total: 70000,
-    },
-    {
-      id: 'HD004',
-      customer: 'Phạm Thị D',
-      phone: '0922334455',
-      date: '2025-08-03',
-      status: 'Chưa thanh toán',
-      items: [
-        { name: 'Trà Ô-long', quantity: 2, price: 20000 },
-        { name: 'Revive', quantity: 1, price: 20000 },
-        { name: 'Hạt điều', quantity: 1, price: 30000 },
-      ],
-      total: 90000,
-    },
-  ];
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
+  const handleShowNotification = React.useCallback((
+    message: string,
+    type: 'success' | 'error' | 'info'
+  ) => {
+    setNotification({ visible: true, message, type });
+    setTimeout(() => handleHideNotification(), 3000);
+  }, []);
+
+  useEffect(() => {
+    import('@/utils/api').then(({ default: api }) => {
+      api.get('/invoices')
+        .then(res => setInvoices(res.data))
+        .catch((err) => {
+          handleShowNotification('Lỗi khi tải dữ liệu hóa đơn!', 'error');
+          console.error('API error:', err);
+        });
+    });
+  }, [handleShowNotification]);
   const [showDetail, setShowDetail] = useState<Invoice | null>(null);
   const [showAddEditModal, setShowAddEditModal] = useState(false);
   const [currentEditInvoice, setCurrentEditInvoice] = useState<Invoice | null>(
@@ -132,13 +92,7 @@ const InvoiceManagement = () => {
     );
   }, []);
 
-  const handleShowNotification = (
-    message: string,
-    type: 'success' | 'error' | 'info'
-  ) => {
-    setNotification({ visible: true, message, type });
-    setTimeout(() => handleHideNotification(), 3000);
-  };
+
 
   const handleHideNotification = () => {
     setNotification({ visible: false, message: '', type: 'info' });
@@ -177,17 +131,23 @@ const InvoiceManagement = () => {
     }
   };
 
-  const handleSaveInvoice = (newInvoice: Invoice) => {
-    if (invoices.find((inv) => inv.id === newInvoice.id)) {
-      setInvoices(
-        invoices.map((inv) => (inv.id === newInvoice.id ? newInvoice : inv))
-      );
-      handleShowNotification('Cập nhật hóa đơn thành công!', 'success');
-    } else {
-      setInvoices([...invoices, newInvoice]);
-      handleShowNotification('Thêm hóa đơn thành công!', 'success');
+  const handleSaveInvoice = async (newInvoice: Invoice) => {
+    try {
+      const api = (await import('@/utils/api')).default;
+      if (invoices.find((inv) => inv.id === newInvoice.id)) {
+        await api.put(`/invoices/${newInvoice.id}`, newInvoice);
+        handleShowNotification('Cập nhật hóa đơn thành công!', 'success');
+      } else {
+        await api.post('/invoices', newInvoice);
+        handleShowNotification('Thêm hóa đơn thành công!', 'success');
+      }
+      const res = await api.get('/invoices');
+      setInvoices(res.data);
+      closeAddEditModal();
+    } catch (err) {
+      console.error('API error:', err);
+      handleShowNotification('Lỗi khi lưu hóa đơn!', 'error');
     }
-    closeAddEditModal();
   };
 
   const handleDelete = (invoice: Invoice) => {
@@ -195,19 +155,28 @@ const InvoiceManagement = () => {
     setIsConfirmingDelete(true);
   };
 
-  const confirmDelete = () => {
-    if (deleteModalRef.current) {
-      gsap.to(deleteModalRef.current, {
-        scale: 0.8,
-        opacity: 0,
-        duration: 0.3,
-        onComplete: () => {
-          setInvoices(invoices.filter((inv) => inv.id !== invoiceToDelete?.id));
-          setIsConfirmingDelete(false);
-          setItemToDelete(null);
-          handleShowNotification('Đã xoá hóa đơn thành công!', 'success');
-        },
-      });
+  const confirmDelete = async () => {
+    if (deleteModalRef.current && invoiceToDelete) {
+      try {
+        const api = (await import('@/utils/api')).default;
+        await api.delete(`/invoices/${invoiceToDelete.id}`);
+        gsap.to(deleteModalRef.current, {
+          scale: 0.8,
+          opacity: 0,
+          duration: 0.3,
+          onComplete: () => {
+            api.get('/invoices').then(res => {
+              setInvoices(res.data);
+              setIsConfirmingDelete(false);
+              setInvoiceToDelete(null);
+              handleShowNotification('Đã xoá hóa đơn thành công!', 'success');
+            });
+          },
+        });
+      } catch (err) {
+        console.error('API error:', err);
+        handleShowNotification('Lỗi khi xoá hóa đơn!', 'error');
+      }
     }
   };
 
@@ -219,7 +188,7 @@ const InvoiceManagement = () => {
         duration: 0.3,
         onComplete: () => {
           setIsConfirmingDelete(false);
-          setItemToDelete(null);
+          setInvoiceToDelete(null);
         },
       });
     }
@@ -356,7 +325,7 @@ const InvoiceManagement = () => {
                     <td className="px-6 py-4">{inv.id}</td>
                     <td className="px-6 py-4">{inv.customer}</td>
                     <td className="px-6 py-4">{inv.phone}</td>
-                    <td className="px-6 py-4">{formatDate(inv.date)}</td>
+                    <td className="px-6 py-4">{formatDateTime(inv.date)}</td>
                     <td className="px-6 py-4 text-green-600 font-semibold">
                       {formatCurrency(inv.total)}
                     </td>
@@ -486,7 +455,7 @@ const InvoiceDetailModal = ({
             <strong>Số điện thoại:</strong> {invoice.phone}
           </p>
           <p>
-            <strong>Ngày:</strong> {formatDate(invoice.date)}
+            <strong>Ngày:</strong> {formatDateTime(invoice.date)}
           </p>
           <p>
             <strong>Tổng tiền:</strong>{' '}
@@ -672,69 +641,5 @@ const AddEditInvoiceModal = React.forwardRef<
   );
 });
 AddEditInvoiceModal.displayName = 'AddEditInvoiceModal';
-
-interface ConfirmationModalProps {
-  onConfirm: () => void;
-  onCancel: () => void;
-  title: string;
-  message: string;
-  confirmText: string;
-  cancelText: string;
-  color: 'red' | 'yellow';
-}
-
-const ConfirmationModal = React.forwardRef<
-  HTMLDivElement,
-  ConfirmationModalProps
->(
-  (
-    { onConfirm, onCancel, title, message, confirmText, cancelText, color },
-    ref
-  ) => {
-    const isRed = color === 'red';
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/20">
-        <div
-          ref={ref}
-          className="bg-white rounded-2xl shadow-2xl p-8 relative w-full max-w-md mx-auto"
-        >
-          <div className="flex flex-col items-center text-center">
-            <div
-              className={`p-4 rounded-full ${
-                isRed ? 'bg-red-100' : 'bg-amber-100'
-              }`}
-            >
-              <Info
-                size={28}
-                className={isRed ? 'text-red-600' : 'text-amber-600'}
-              />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mt-4">{title}</h3>
-            <p className="text-gray-600 mt-2">{message}</p>
-          </div>
-          <div className="flex justify-center gap-4 mt-6">
-            <button
-              onClick={onCancel}
-              className="px-5 py-2 text-gray-700 hover:text-gray-900 transition-all duration-200"
-            >
-              {cancelText}
-            </button>
-            <button
-              onClick={onConfirm}
-              className={`px-5 py-2 rounded-lg text-white text-sm font-semibold shadow transition-all duration-200 transform hover:scale-105 ${
-                isRed
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-amber-600 hover:bg-amber-700'
-              }`}
-            >
-              {confirmText}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-);
-ConfirmationModal.displayName = 'ConfirmationModal';
 
 export default InvoiceManagement;

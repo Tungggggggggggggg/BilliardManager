@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef, forwardRef } from "react";
-import { TriangleAlert, Search, Filter, Plus, Edit, Trash2, ArrowUpDown, Info, Save } from "lucide-react";
+import { TriangleAlert, Search, Filter, Plus, Edit, Trash2, ArrowUpDown, Save } from "lucide-react";
 import gsap from "gsap";
 import Notification from '@/components/Notification';
-
+import { formatCurrency } from "@/lib/formatCurrency";
+import ConfirmationModal from "@/components/common/ConfirmationModal";
 interface InventoryItem {
     id: number;
     name: string;
@@ -20,74 +21,6 @@ interface NotificationState {
     type: 'success' | 'error' | 'info';
 }
 
-interface ConfirmationModalProps {
-    onConfirm: () => void;
-    onCancel: () => void;
-    title: string;
-    message: string;
-    confirmText: string;
-    cancelText: string;
-    color: "red" | "yellow";
-}
-
-const ConfirmationModal = forwardRef<
-    HTMLDivElement,
-    ConfirmationModalProps
->(
-    (
-        { onConfirm, onCancel, title, message, confirmText, cancelText, color },
-        ref
-    ) => {
-        const isRed = color === "red";
-        return (
-            <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/20">
-                <div ref={ref} className="bg-white rounded-2xl shadow-2xl p-8 relative w-full max-w-md mx-auto">
-                    <div className="flex flex-col items-center text-center">
-                        <div className={`p-4 rounded-full ${isRed ? "bg-red-100" : "bg-amber-100"}`}>
-                            <Info size={28} className={isRed ? "text-red-600" : "text-amber-600"} />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 mt-4">{title}</h3>
-                        <p className="text-gray-600 mt-2">{message}</p>
-                    </div>
-                    <div className="flex justify-center gap-4 mt-6">
-                        <button
-                            onClick={onCancel}
-                            className="px-5 py-2 text-gray-700 hover:text-gray-900 transition-all duration-200"
-                        >
-                            {cancelText}
-                        </button>
-                        <button
-                            onClick={onConfirm}
-                            className={`px-5 py-2 rounded-lg text-white text-sm font-semibold shadow transition-all duration-200 transform hover:scale-105 ${
-                                isRed ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"
-                            }`}
-                        >
-                            {confirmText}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-);
-ConfirmationModal.displayName = "ConfirmationModal";
-
-const initialInventoryItems: InventoryItem[] = [
-    { id: 1, name: "Pepsi", price: 20000, costPrice: 10000, unit: "chai", quantity: 227 },
-    { id: 2, name: "Sting", price: 20000, costPrice: 11000, unit: "chai", quantity: 345 },
-    { id: 3, name: "Trà Ô-long", price: 20000, costPrice: 9000, unit: "chai", quantity: 98 },
-    { id: 4, name: "Revive", price: 20000, costPrice: 10000, unit: "chai", quantity: 232 },
-    { id: 5, name: "Redbull", price: 25000, costPrice: 13000, unit: "chai", quantity: 55 },
-    { id: 6, name: "Nước suối", price: 10000, costPrice: 5000, unit: "chai", quantity: 342 },
-    { id: 7, name: "555", price: 40000, costPrice: 25000, unit: "gói", quantity: 18 },
-    { id: 8, name: "seven", price: 30000, costPrice: 18000, unit: "gói", quantity: 56 },
-    { id: 9, name: "Craven A", price: 30000, costPrice: 18000, unit: "gói", quantity: 65 },
-    { id: 10, name: "Khoai tây chiên", price: 30000, costPrice: 15000, unit: "phần", quantity: 77 },
-    { id: 11, name: "Khô bò", price: 60000, costPrice: 40000, unit: "phần", quantity: 33 },
-    { id: 12, name: "Khô mực nướng", price: 60000, costPrice: 40000, unit: "phần", quantity: 22 },
-    { id: 13, name: "Hạt điều", price: 30000, costPrice: 15000, unit: "phần", quantity: 54 },
-];
-
 const lowStockThresholds = {
     "chai": 60,
     "gói": 25,
@@ -95,30 +28,41 @@ const lowStockThresholds = {
 };
 
 const getThresholdByUnit = (unit: string): number => {
-    return (lowStockThresholds as any)[unit] || 0;
+    return lowStockThresholds[unit as keyof typeof lowStockThresholds] || 0;
 };
 
-const formatCurrency = (value: number) =>
-    value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
 export default function InventoryPage() {
-    const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>(initialInventoryItems);
+    const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [sortConfig, setSortConfig] = useState<{ key: keyof InventoryItem | null, direction: 'ascending' | 'descending' }>({ key: null, direction: "ascending" });
     const [filterUnit, setFilterUnit] = useState("all");
     const [filterStock, setFilterStock] = useState("all");
-
     const [showAddEditModal, setShowAddEditModal] = useState(false);
     const [currentEditItem, setCurrentEditItem] = useState<InventoryItem | null>(null);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
     const [notification, setNotification] = useState<NotificationState>({ visible: false, message: '', type: 'info' });
-
+    const [loading, setLoading] = useState(false);
     const pageRef = useRef(null);
     const addEditModalRef = useRef<HTMLDivElement>(null);
     const deleteModalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        setLoading(true);
+        import('@/utils/api').then(({ default: api }) => {
+            api.get('/inventory')
+                .then(res => {
+                    setInventoryItems(res.data);
+                    setLoading(false);
+                })
+                .catch((err) => {
+                    setLoading(false);
+                    setNotification({ visible: true, message: 'Lỗi khi tải dữ liệu kho hàng!', type: 'error' });
+                    console.error('API error:', err);
+                    setTimeout(() => handleHideNotification(), 3000);
+                });
+        });
         gsap.fromTo(
             pageRef.current,
             { opacity: 0, y: 50 },
@@ -159,16 +103,22 @@ export default function InventoryPage() {
         }
     };
 
-    const handleSaveItem = (item: InventoryItem) => {
-        if (item.id) {
-            setInventoryItems(inventoryItems.map(inv => inv.id === item.id ? item : inv));
-            handleShowNotification('Cập nhật sản phẩm thành công!', 'success');
-        } else {
-            const newId = Math.max(...inventoryItems.map(inv => inv.id)) + 1;
-            setInventoryItems([...inventoryItems, { ...item, id: newId }]);
-            handleShowNotification('Thêm sản phẩm mới thành công!', 'success');
+    const handleSaveItem = async (item: InventoryItem) => {
+        try {
+            const api = (await import('@/utils/api')).default;
+            if (item.id) {
+                await api.put(`/inventory/${item.id}`, item);
+            } else {
+                await api.post('/inventory', item);
+            }
+            const res = await api.get('/inventory');
+            setInventoryItems(res.data);
+            handleShowNotification(item.id ? 'Cập nhật sản phẩm thành công!' : 'Thêm sản phẩm mới thành công!', 'success');
+            closeAddEditModal();
+        } catch (err) {
+            console.error('API error:', err);
+            handleShowNotification('Lỗi khi lưu sản phẩm!', 'error');
         }
-        closeAddEditModal();
     };
 
     const handleDelete = (item: InventoryItem) => {
@@ -176,19 +126,18 @@ export default function InventoryPage() {
         setIsConfirmingDelete(true);
     };
 
-    const confirmDelete = () => {
-        if (deleteModalRef.current) {
-            gsap.to(deleteModalRef.current, {
-                scale: 0.8,
-                opacity: 0,
-                duration: 0.3,
-                onComplete: () => {
-                    setInventoryItems(inventoryItems.filter(inv => inv.id !== itemToDelete?.id));
-                    setIsConfirmingDelete(false);
-                    setItemToDelete(null);
-                    handleShowNotification('Đã xoá sản phẩm thành công!', 'success');
-                },
-            });
+    const confirmDelete = async () => {
+        try {
+            if (!itemToDelete) return;
+            const api = (await import('@/utils/api')).default;
+            await api.delete(`/inventory/${itemToDelete.id}`);
+            setInventoryItems(inventoryItems.filter(inv => inv.id !== itemToDelete.id));
+            setIsConfirmingDelete(false);
+            setItemToDelete(null);
+            handleShowNotification('Đã xoá sản phẩm thành công!', 'success');
+        } catch (err) {
+            console.error('API error:', err);
+            handleShowNotification('Lỗi khi xoá sản phẩm!', 'error');
         }
     };
 
@@ -227,15 +176,12 @@ export default function InventoryPage() {
             if (!sortConfig.key) return 0;
             const aValue = a[sortConfig.key];
             const bValue = b[sortConfig.key];
-
             if (aValue === undefined || bValue === undefined) return 0;
-
             if (typeof aValue === 'string' && typeof bValue === 'string') {
                 return sortConfig.direction === 'ascending'
                     ? aValue.localeCompare(bValue)
                     : bValue.localeCompare(aValue);
             }
-
             if (aValue < bValue) {
                 return sortConfig.direction === 'ascending' ? -1 : 1;
             }
@@ -245,7 +191,10 @@ export default function InventoryPage() {
             return 0;
         });
 
-    const uniqueUnits = ["all", ...new Set(initialInventoryItems.map(item => item.unit))];
+    const uniqueUnits = [
+        "all",
+        ...Array.from(new Set(inventoryItems.map(item => item.unit)))
+    ];
 
     const totalProducts = inventoryItems.length;
     const lowStockProducts = inventoryItems.filter(item => item.quantity < getThresholdByUnit(item.unit)).length;
@@ -254,7 +203,6 @@ export default function InventoryPage() {
     return (
         <div className="p-4 md:p-6 w-full max-w-screen-xl mx-auto">
             {notification.visible && <Notification message={notification.message} type={notification.type} onClose={handleHideNotification} />}
-
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
                     Quản lý kho hàng
@@ -266,7 +214,6 @@ export default function InventoryPage() {
                     <Plus size={16} /> Thêm sản phẩm
                 </button>
             </div>
-
             <div ref={pageRef} className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3 bg-white rounded-2xl shadow-xl p-6 border space-y-6">
                     <div className="flex flex-wrap gap-4 mb-4 items-center">
@@ -280,7 +227,6 @@ export default function InventoryPage() {
                                 className="pl-10 pr-4 py-2 border rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                             />
                         </div>
-
                         <div className="flex items-center gap-2">
                             <Filter className="h-5 w-5 text-gray-500" />
                             <select
@@ -294,7 +240,6 @@ export default function InventoryPage() {
                                 ))}
                             </select>
                         </div>
-
                         <div className="flex items-center gap-2">
                             <select
                                 value={filterStock}
@@ -307,8 +252,10 @@ export default function InventoryPage() {
                             </select>
                         </div>
                     </div>
-
                     <div className="overflow-x-auto rounded-xl border">
+                        {loading ? (
+                            <div className="text-center py-10 text-gray-500">Đang tải dữ liệu...</div>
+                        ) : (
                         <table className="min-w-full table-auto text-sm">
                             <thead className="bg-gray-50 text-gray-600 uppercase">
                                 <tr>
@@ -361,7 +308,7 @@ export default function InventoryPage() {
                                                         {item.quantity}
                                                     </span>
                                                     {item.quantity < getThresholdByUnit(item.unit) && (
-                                                        <TriangleAlert className="text-red-500 w-4 h-4" title="Sắp hết hàng" />
+                                                        <TriangleAlert className="text-red-500 w-4 h-4" />
                                                     )}
                                                 </div>
                                             </td>
@@ -395,9 +342,9 @@ export default function InventoryPage() {
                                 )}
                             </tbody>
                         </table>
+                        )}
                     </div>
                 </div>
-
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white p-6 rounded-2xl shadow-xl border">
                         <h3 className="text-lg font-semibold mb-2 text-gray-800">Tổng số sản phẩm</h3>
@@ -417,7 +364,6 @@ export default function InventoryPage() {
                     </div>
                 </div>
             </div>
-
             {showAddEditModal && (
                 <AddEditInventoryModal
                     ref={addEditModalRef}
@@ -427,7 +373,6 @@ export default function InventoryPage() {
                     uniqueUnits={uniqueUnits.filter(unit => unit !== "all")}
                 />
             )}
-
             {isConfirmingDelete && (
                 <ConfirmationModal
                     ref={deleteModalRef}

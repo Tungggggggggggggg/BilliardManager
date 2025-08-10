@@ -6,6 +6,8 @@ import Link from "next/link";
 import gsap from "gsap";
 import Notification from "@/components/Notification";
 import { Info } from "lucide-react";
+import api from "@/utils/api";
+import { useRouter } from "next/navigation";
 
 interface NotificationState {
   visible: boolean;
@@ -78,10 +80,7 @@ const rankColor = (amount: number) => {
   return "text-yellow-800";
 };
 
-const getToday = () => {
-  const today = new Date();
-  return today.toISOString().split("T")[0];
-};
+
 
 interface MemberData {
   member_id: number;
@@ -94,108 +93,7 @@ interface MemberData {
   join_date: string;
 }
 
-const initialMembers: MemberData[] = [
-  {
-    member_id: 1,
-    full_name: "Nguyễn Văn A",
-    gender: "Nam",
-    birthdate: "1990-01-01",
-    phone: "0123456789",
-    email: "a@example.com",
-    total_spent: 7200000,
-    join_date: "2023-05-10",
-  },
-  {
-    member_id: 2,
-    full_name: "Trần Thị B",
-    gender: "Nữ",
-    birthdate: "1995-07-15",
-    phone: "0987654321",
-    email: "b@example.com",
-    total_spent: 12000000,
-    join_date: "2022-10-03",
-  },
-  {
-    member_id: 3,
-    full_name: "Lê Văn C",
-    gender: "Nam",
-    birthdate: "1988-03-20",
-    phone: "0901234567",
-    email: "c@example.com",
-    total_spent: 3400000,
-    join_date: "2023-01-22",
-  },
-  {
-    member_id: 4,
-    full_name: "Phạm Thị D",
-    gender: "Nữ",
-    birthdate: "1992-09-10",
-    phone: "0976543210",
-    email: "d@example.com",
-    total_spent: 5100000,
-    join_date: "2023-08-01",
-  },
-  {
-    member_id: 5,
-    full_name: "Hoàng Văn E",
-    gender: "Nam",
-    birthdate: "1985-12-12",
-    phone: "0911223344",
-    email: "e@example.com",
-    total_spent: 9500000,
-    join_date: "2024-03-17",
-  },
-  {
-    member_id: 6,
-    full_name: "Đỗ Thị F",
-    gender: "Nữ",
-    birthdate: "1999-11-11",
-    phone: "0900112233",
-    email: "f@example.com",
-    total_spent: 2000000,
-    join_date: "2024-01-05",
-  },
-  {
-    member_id: 7,
-    full_name: "Ngô Văn G",
-    gender: "Nam",
-    birthdate: "1980-04-18",
-    phone: "0933344556",
-    email: "g@example.com",
-    total_spent: 10000000,
-    join_date: "2023-11-20",
-  },
-  {
-    member_id: 8,
-    full_name: "Trịnh Thị H",
-    gender: "Nữ",
-    birthdate: "1993-06-06",
-    phone: "0911225566",
-    email: "h@example.com",
-    total_spent: 4800000,
-    join_date: "2023-06-30",
-  },
-  {
-    member_id: 9,
-    full_name: "Bùi Văn I",
-    gender: "Nam",
-    birthdate: "1987-08-25",
-    phone: "0900778899",
-    email: "i@example.com",
-    total_spent: 3000000,
-    join_date: "2024-05-05",
-  },
-  {
-    member_id: 10,
-    full_name: "Nguyễn Thị J",
-    gender: "Nữ",
-    birthdate: "1996-02-14",
-    phone: "0922334455",
-    email: "j@example.com",
-    total_spent: 12500000,
-    join_date: "2023-09-09",
-  },
-];
+
 
 const isValidDate = (dateString: string) => {
   if (!dateString) return false;
@@ -204,9 +102,9 @@ const isValidDate = (dateString: string) => {
   const date = new Date(year, month - 1, day);
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 };
-
 export default function MemberPage() {
-  const [members, setMembers] = useState<MemberData[]>(initialMembers);
+  const router = useRouter();
+  const [members, setMembers] = useState<MemberData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -225,12 +123,32 @@ export default function MemberPage() {
   const pageContentRef = useRef(null);
 
   useEffect(() => {
+    api.get('/members')
+      .then(res => {
+        const data = res.data;
+        if (Array.isArray(data)) {
+          setMembers(data);
+        } else {
+          setMembers([]);
+          handleShowNotification('Dữ liệu trả về không hợp lệ!', 'error');
+        }
+      })
+      .catch((err) => {
+        setMembers([]);
+        if (err.response && err.response.status === 401) {
+          handleShowNotification('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!', 'error');
+          setTimeout(() => router.push('/login'), 1500);
+        } else {
+          console.error('API error:', err);
+          handleShowNotification('Lỗi khi tải dữ liệu hội viên!', 'error');
+        }
+      });
     gsap.fromTo(
       pageContentRef.current,
       { opacity: 0, y: 50 },
       { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
     );
-  }, []);
+  }, [router]);
 
   const handleShowNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -241,45 +159,53 @@ export default function MemberPage() {
     setNotification({ visible: false, message: '', type: 'info' });
   };
 
-  const handleAddMember = () => {
+  const handleAddMember = async () => {
     const { full_name, phone, email, birthdate } = formData;
-
     if (!full_name || !phone || !email || !birthdate) {
       handleShowNotification('Vui lòng nhập đầy đủ thông tin hội viên!', 'error');
       return;
     }
-
     if (!isValidDate(birthdate)) {
       handleShowNotification('Ngày sinh không hợp lệ. Vui lòng kiểm tra lại!', 'error');
       return;
     }
-
-    gsap.to(modalRef.current, {
-      scale: 0.8,
-      opacity: 0,
-      duration: 0.4,
-      onComplete: () => {
-        setMembers((prev) => [
-          ...prev,
-          {
-            member_id: Date.now(),
-            ...formData,
-            join_date: getToday(),
-          },
-        ]);
-        setShowModal(false);
-        setUnsaved(false);
-        setFormData({
-          full_name: "",
-          gender: "Nam",
-          birthdate: "",
-          phone: "",
-          email: "",
-          total_spent: 0,
-        });
-        handleShowNotification('Đã thêm hội viên mới!', 'success');
-      },
-    });
+    try {
+      await api.post('/members', formData);
+      const res = await api.get('/members');
+      const data = res.data;
+      if (Array.isArray(data)) {
+        setMembers(data);
+      } else {
+        setMembers([]);
+        handleShowNotification('Dữ liệu trả về không hợp lệ!', 'error');
+      }
+      gsap.to(modalRef.current, {
+        scale: 0.8,
+        opacity: 0,
+        duration: 0.4,
+        onComplete: () => {
+          setShowModal(false);
+          setUnsaved(false);
+          setFormData({
+            full_name: "",
+            gender: "Nam",
+            birthdate: "",
+            phone: "",
+            email: "",
+            total_spent: 0,
+          });
+          handleShowNotification('Đã thêm hội viên mới!', 'success');
+        },
+      });
+    } catch (err) {
+      if (err.response && err.response.status === 401) {
+        handleShowNotification('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!', 'error');
+        setTimeout(() => router.push('/login'), 1500);
+      } else {
+        console.error('API error:', err);
+        handleShowNotification('Lỗi khi thêm hội viên!', 'error');
+      }
+    }
   };
 
   const handleOpenModal = () => {

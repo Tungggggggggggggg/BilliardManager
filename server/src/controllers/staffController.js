@@ -1,6 +1,6 @@
-import { getAllStaff, getStaffById, createStaff, updateStaff, deleteStaff } from '../services/staffService.js';
+import { getAllStaff, getStaffById, createStaff as createStaffService, updateStaff as updateStaffService, deleteStaff as deleteStaffService } from '../services/staffService.js';
 
-export const getStaff = async (req, res) => {
+export const getStaffController = async (req, res) => {
   try {
     const staff = await getAllStaff();
     res.json(staff);
@@ -9,39 +9,39 @@ export const getStaff = async (req, res) => {
   }
 };
 
-export const getStaffById = async (req, res) => {
+export const getStaffByIdController = async (req, res) => {
   const { id } = req.params;
   try {
-    const staffMember = await getStaffById(id);
+  const staffMember = await getStaffById(id);
     res.json(staffMember);
   } catch (error) {
     res.status(error.message === 'Không tìm thấy nhân viên' ? 404 : 500).json({ error: error.message });
   }
 };
 
-export const createStaff = async (req, res) => {
+export const createStaffController = async (req, res) => {
   try {
-    const staffMember = await createStaff(req.body);
+    const staffMember = await createStaffService(req.body);
     res.status(201).json(staffMember);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-export const updateStaff = async (req, res) => {
+export const updateStaffController = async (req, res) => {
   const { id } = req.params;
   try {
-    const staffMember = await updateStaff(id, req.body);
+    const staffMember = await updateStaffService(id, req.body);
     res.json(staffMember);
   } catch (error) {
     res.status(error.message === 'Không tìm thấy nhân viên' ? 404 : 500).json({ error: error.message });
   }
 };
 
-export const deleteStaff = async (req, res) => {
+export const deleteStaffController = async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await deleteStaff(id);
+    const result = await deleteStaffService(id);
     res.json(result);
   } catch (error) {
     res.status(error.message === 'Không tìm thấy nhân viên' ? 404 : 500).json({ error: error.message });

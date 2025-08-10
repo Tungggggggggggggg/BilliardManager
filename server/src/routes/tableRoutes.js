@@ -1,20 +1,20 @@
 import express from 'express';
-import { authMiddleware } from '../middleware/auth.js';
-import { validateTable } from '../middleware/validate.js';
+import { authMiddleware } from '../middlewares/auth.js';
+import { validateTable } from '../middlewares/validate.js';
 import {
-  getTables,
-  getTableById,
-  createTable,
-  updateTable,
-  deleteTable,
+  getTablesController,
+  getTableByIdController,
+  createTableController,
+  updateTableController,
+  deleteTableController,
 } from '../controllers/tableController.js';
 
 const router = express.Router();
 
-router.get('/', authMiddleware, getTables);
-router.get('/:id', authMiddleware, getTableById);
-router.post('/', authMiddleware, validateTable, createTable);
-router.put('/:id', authMiddleware, validateTable, updateTable);
-router.delete('/:id', authMiddleware, deleteTable);
+router.get('/', getTablesController);
+router.get('/:id', getTableByIdController);
+router.post('/', validateTable, createTableController);
+router.put('/:id', validateTable, updateTableController);
+router.delete('/:id', deleteTableController);
 
 export default router;

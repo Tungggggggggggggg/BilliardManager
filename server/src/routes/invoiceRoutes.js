@@ -1,24 +1,24 @@
 import express from 'express';
-import { authMiddleware } from '../middleware/auth.js';
-import { validateInvoice, validateInvoiceItem } from '../middleware/validate.js';
+import { authMiddleware } from '../middlewares/auth.js';
+import { validateInvoice, validateInvoiceItem } from '../middlewares/validate.js';
 import {
-  getInvoices,
-  getInvoiceById,
-  createInvoice,
-  updateInvoice,
-  deleteInvoice,
-  getInvoiceItems,
-  createInvoiceItem,
+  getInvoicesController,
+  getInvoiceByIdController,
+  createInvoiceController,
+  updateInvoiceController,
+  deleteInvoiceController,
+  getInvoiceItemsController,
+  createInvoiceItemController,
 } from '../controllers/invoiceController.js';
 
 const router = express.Router();
 
-router.get('/', authMiddleware, getInvoices);
-router.get('/:id', authMiddleware, getInvoiceById);
-router.post('/', authMiddleware, validateInvoice, createInvoice);
-router.put('/:id', authMiddleware, validateInvoice, updateInvoice);
-router.delete('/:id', authMiddleware, deleteInvoice);
-router.get('/:id/items', authMiddleware, getInvoiceItems);
-router.post('/:id/items', authMiddleware, validateInvoiceItem, createInvoiceItem);
+router.get('/', getInvoicesController);
+router.get('/:id', getInvoiceByIdController);
+router.post('/', validateInvoice, createInvoiceController);
+router.put('/:id', validateInvoice, updateInvoiceController);
+router.delete('/:id', deleteInvoiceController);
+router.get('/:id/items', getInvoiceItemsController);
+router.post('/:id/items', validateInvoiceItem, createInvoiceItemController);
 
 export default router;
