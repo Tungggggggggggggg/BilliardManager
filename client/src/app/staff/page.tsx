@@ -24,6 +24,7 @@ interface ConfirmationModalProps {
   color: "red" | "yellow";
 }
 
+
 const ConfirmationModal = forwardRef<
   HTMLDivElement,
   ConfirmationModalProps
@@ -69,7 +70,7 @@ ConfirmationModal.displayName = "ConfirmationModal";
 
 type Staff = {
   id: number;
-  staffCode: string;
+  staff_code: string;
   name: string;
   position: string;
   phone: string;
@@ -82,7 +83,7 @@ type Staff = {
 
 
 
-const positions = ["Quản lý", "Nhân viên", "Thu ngân", "Bảo vệ", "Kỹ thuật", "Lễ tân", "Tạp vụ"];
+const positions = ["Quản lý", "Nhân viên", "Bảo vệ"];
 const genders = ["Nam", "Nữ", "Khác"];
 
 export default function StaffPage() {
@@ -95,7 +96,7 @@ export default function StaffPage() {
 
   const handleShowNotification = React.useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
-    setTimeout(() => handleHideNotification(), 3000);
+    setTimeout(() => handleHideNotification(), 6000);
   }, []);
 
 useEffect(() => {
@@ -119,7 +120,7 @@ useEffect(() => {
   );
 }, [handleShowNotification]);
   const [newUser, setNewUser] = useState<Omit<Staff, "id" | "createdAt"> & { password: string }>({
-    staffCode: "",
+    staff_code: "",
     name: "",
     position: "Nhân viên",
     phone: "",
@@ -208,7 +209,7 @@ useEffect(() => {
 
   const resetForm = () => {
     setNewUser({
-      staffCode: "",
+      staff_code: "",
       name: "",
       phone: "",
       email: "",
@@ -222,38 +223,65 @@ useEffect(() => {
     setError("");
   };
 
-  const handleAddStaff = () => {
-    const { name, phone, email, position, password, gender, birthday } = newUser;
+  const handleAddStaff = async () => {
+  const { name, phone, email, position, password, gender, birthday } = newUser;
 
-    if (!name || !phone || !email || !position || !password || !birthday || !gender) {
-      setError("Vui lòng nhập đầy đủ thông tin, bao gồm mật khẩu.");
-      return;
-    }
+  // Kiểm tra định dạng email Gmail
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    setError("Email phải đúng định dạng (ví dụ: example@gmail.com hoặc example@domain.com).");
+    return;
+  }
 
-    const newStaffCode = `NV${String(staffList.length + 1).padStart(3, '0')}`;
-    const createdAt = new Date().toLocaleString("sv-SE", {
-        hour12: false,
-        timeZone: "Asia/Ho_Chi_Minh",
+  // Kiểm tra số điện thoại 10 số
+  const phoneRegex = /^\d{10}$/;
+  if (!phoneRegex.test(phone)) {
+    setError("Số điện thoại phải đúng 10 số.");
+    return;
+  }
+
+  // Kiểm tra mật khẩu: ít nhất 88 ký tự, có chữ hoa, chữ thường, số, ký tự đặc biệt
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+  if (!passwordRegex.test(password)) {
+    setError("Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.");
+    return;
+  }
+
+  if (!name || !phone || !email || !position || !password || !birthday || !gender) {
+    setError("Vui lòng nhập đầy đủ thông tin.");
+    return;
+  }
+
+  try {
+    const { default: api } = await import("@/utils/api");
+
+    const res = await api.post("/staff", {
+      name,
+      phone,
+      email,
+      position,
+      password,
+      gender,
+      birthday,
     });
 
-    const newStaffMember: Staff = {
-        id: staffList.length + 1,
-        staffCode: newStaffCode,
-        name,
-        phone,
-        email,
-        position,
-        birthday,
-        gender,
-        createdAt,
-        password,
-    };
-    
-    setStaffList([...staffList, newStaffMember]);
+    setStaffList([...staffList, res.data]);
     setShowModal(false);
     resetForm();
-    handleShowNotification(`Đã thêm nhân viên ${name} thành công!`, 'success');
-  };
+    handleShowNotification(`Đã thêm nhân viên ${res.data.name} thành công!`, "success");
+  } catch (err) {
+    if (err.response) {
+      console.error('API lỗi:', err.response.data);
+      handleShowNotification(`${err.response.data.error || 'Unknown error'}`, 'error');
+    } else {
+      console.error('Lỗi không xác định:', err);
+      handleShowNotification("Lỗi khi thêm nhân viên!", "error");
+    }
+  }
+};
+
+
+
 
   const handleAutoPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
@@ -267,7 +295,7 @@ useEffect(() => {
   
   const filteredStaffList = staffList.filter(staff =>
     staff.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    staff.staffCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    staff.staff_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     staff.position.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const today = new Date().toISOString().split('T')[0];
@@ -325,7 +353,7 @@ useEffect(() => {
           <div className="space-y-2 text-sm text-gray-600">
             <div className="flex items-center gap-2">
               <Award size={16} className="text-blue-500" />
-              <span className="font-medium">Mã NV:</span> {staff.staffCode || staff.id}
+              <span className="font-medium">Mã NV:</span> {staff.staff_code || staff.id}
             </div>
             <div className="flex items-center gap-2">
               <Phone size={16} className="text-blue-500" />
@@ -366,7 +394,7 @@ useEffect(() => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
                 { name: "name", label: "Họ và tên", type: "text" },
-                { name: "staffCode", label: "Mã nhân viên (Tự động)", type: "text", disabled: true, value: `NV${String(staffList.length + 1).padStart(3, '0')}` },
+                { name: "staff_code", label: "Mã nhân viên (Tự động)", type: "text", disabled: true, value: newUser.staff_code || " " },
                 { name: "phone", label: "Số điện thoại", type: "text" },
                 { name: "email", label: "Email", type: "email" },
                 { name: "position", label: "Chức vụ", type: "select", options: positions },
@@ -393,7 +421,7 @@ useEffect(() => {
                     <input
                       type={field.type}
                       name={field.name}
-                      value={field.name === "staffCode" ? field.value : (newUser[field.name as keyof typeof newUser] as string)}
+                      value={field.name === "staff_code" ? field.value : (newUser[field.name as keyof typeof newUser] as string)}
                       onChange={handleFormChange}
                       disabled={field.disabled}
                       className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${field.disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white border-gray-300"}`}

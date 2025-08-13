@@ -30,7 +30,8 @@ export const validateInventoryItem = [
   },
 ];
 
-export const validateStaff = [
+// Middleware validate cho tạo nhân viên: password bắt buộc
+export const validateStaffCreate = [
   body('name').notEmpty().withMessage('Họ tên không được để trống'),
   body('email').isEmail().withMessage('Email không hợp lệ'),
   body('phone').matches(/^[0-9]{10,11}$/).withMessage('Số điện thoại không hợp lệ'),
@@ -38,6 +39,24 @@ export const validateStaff = [
   body('gender').isIn(['Nam', 'Nữ', 'Khác']).withMessage('Giới tính không hợp lệ'),
   body('position').notEmpty().withMessage('Chức vụ không được để trống'),
   body('password').isLength({ min: 6 }).withMessage('Mật khẩu phải dài ít nhất 6 ký tự'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    next();
+  },
+];
+
+// Middleware validate cho cập nhật nhân viên: password không bắt buộc, nếu có thì phải đủ 6 ký tự
+export const validateStaffUpdate = [
+  body('name').notEmpty().withMessage('Họ tên không được để trống'),
+  body('email').isEmail().withMessage('Email không hợp lệ'),
+  body('phone').matches(/^[0-9]{10,11}$/).withMessage('Số điện thoại không hợp lệ'),
+  body('birthday').isDate().withMessage('Ngày sinh không hợp lệ'),
+  body('gender').isIn(['Nam', 'Nữ', 'Khác']).withMessage('Giới tính không hợp lệ'),
+  body('position').notEmpty().withMessage('Chức vụ không được để trống'),
+  body('password').optional().isLength({ min: 6 }).withMessage('Mật khẩu phải dài ít nhất 6 ký tự'),
   (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

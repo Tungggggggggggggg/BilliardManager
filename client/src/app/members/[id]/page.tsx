@@ -62,6 +62,21 @@ interface NotificationState {
   type: 'success' | 'error' | 'info';
 }
 
+export function formatDateDDMMYYYY(dateStr: string) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
+
+
+
 
 
 export default function MemberDetailPage() {
@@ -106,7 +121,12 @@ export default function MemberDetailPage() {
 
   const handleOpenEdit = () => {
     if (currentMember) {
-      setEditData({ ...currentMember });
+      setEditData({
+      ...currentMember,
+      birthdate: currentMember.birthdate
+        ? currentMember.birthdate
+        : ''
+    });
       setIsEditing(true);
     }
   };
@@ -133,17 +153,32 @@ export default function MemberDetailPage() {
   };
 
   const handleSaveEdit = async () => {
-    if (!editData) return;
-    try {
-      await api.put(`/members/${id}`, editData);
-      setCurrentMember(editData);
-      setIsEditing(false);
-      handleShowNotification('Đã cập nhật thông tin hội viên!', 'success');
-    } catch (err) {
-      console.error('API error:', err);
-      handleShowNotification('Lỗi khi cập nhật hội viên!', 'error');
-    }
-  };
+  if (!editData) return;
+  try {
+    // Tạo object chỉ chứa các field cần cập nhật
+    const updatedData = {
+      member_id: editData.member_id,
+      full_name: editData.full_name,
+      gender: editData.gender,
+      birthdate: editData.birthdate,
+      phone: editData.phone,
+      email: editData.email,
+      total_spent: editData.total_spent,
+    };
+
+    await api.put(`/members/${id}`, updatedData);
+    setCurrentMember({
+      ...currentMember!,
+      ...updatedData,
+    });
+    setIsEditing(false);
+    handleShowNotification('Đã cập nhật thông tin hội viên!', 'success');
+  } catch (err) {
+    console.error('API error:', err);
+    handleShowNotification('Lỗi khi cập nhật hội viên!', 'error');
+  }
+};
+
 
   const handleDelete = () => {
     setIsConfirmingDelete(true);
@@ -292,15 +327,19 @@ export default function MemberDetailPage() {
             type="select"
           />
           <EditableInfoCard
-            label="Ngày sinh"
-            name="birthdate"
-            value={formatDateTime(currentMember.birthdate)}
-            icon={Calendar}
-            isEditing={isEditing}
-            editValue={editData?.birthdate || ''}
-            onEditChange={handleEditChange}
-            type="date"
-          />
+          label="Ngày sinh"
+          name="birthdate"
+          value={formatDateDDMMYYYY(currentMember.birthdate)} // chỉ để xem
+          icon={Calendar}
+          isEditing={isEditing}
+          editValue={
+            editData?.birthdate
+  ? new Date(editData.birthdate).toISOString().split('T')[0]
+    : ''
+          }
+          onEditChange={handleEditChange}
+          type="date"
+        />
           <EditableInfoCard
             label="Số điện thoại"
             name="phone"
@@ -321,7 +360,7 @@ export default function MemberDetailPage() {
           />
           <MemberInfoCard
             label="Ngày tham gia"
-            value={formatDateTime(currentMember.join_date)}
+            value={formatDateDDMMYYYY(currentMember.join_date)}
             icon={Calendar}
           />
           <MemberInfoCard
