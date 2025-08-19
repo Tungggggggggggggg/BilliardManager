@@ -160,15 +160,33 @@ export default function MemberPage() {
   };
 
   const handleAddMember = async () => {
-    const { full_name, phone, email, birthdate } = formData;
-    if (!full_name || !phone || !email || !birthdate) {
-      handleShowNotification('Vui lòng nhập đầy đủ thông tin hội viên!', 'error');
-      return;
-    }
-    if (!isValidDate(birthdate)) {
-      handleShowNotification('Ngày sinh không hợp lệ. Vui lòng kiểm tra lại!', 'error');
-      return;
-    }
+  const { full_name, phone, email, birthdate } = formData;
+
+  // Kiểm tra nhập đầy đủ thông tin
+  if (!full_name || !phone || !email || !birthdate) {
+    handleShowNotification('Vui lòng nhập đầy đủ thông tin hội viên!', 'error');
+    return;
+  }
+
+  // Kiểm tra định dạng email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    handleShowNotification('Email không hợp lệ!', 'error');
+    return;
+  }
+
+  // Kiểm tra số điện thoại 10 số
+  const phoneRegex = /^\d{10}$/;
+  if (!phoneRegex.test(phone)) {
+    handleShowNotification('Số điện thoại phải đúng 10 số!', 'error');
+    return;
+  }
+
+  // Kiểm tra ngày sinh
+  if (!isValidDate(birthdate)) {
+    handleShowNotification('Ngày sinh không hợp lệ. Vui lòng kiểm tra lại!', 'error');
+    return;
+  }
     try {
       await api.post('/members', formData);
       const res = await api.get('/members');
@@ -201,11 +219,15 @@ export default function MemberPage() {
       if (err.response && err.response.status === 401) {
         handleShowNotification('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!', 'error');
         setTimeout(() => router.push('/login'), 1500);
+      } else if (err.response && err.response.data && err.response.data.message) {
+        // Lấy message từ backend gửi về
+        handleShowNotification(err.response.data.message, 'error');
       } else {
         console.error('API error:', err);
         handleShowNotification('Lỗi khi thêm hội viên!', 'error');
       }
     }
+
   };
 
   const handleOpenModal = () => {

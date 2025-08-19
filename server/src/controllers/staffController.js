@@ -30,11 +30,18 @@ export const createStaffController = async (req, res) => {
 
 export const updateStaffController = async (req, res) => {
   const { id } = req.params;
+req.body.position = req.body.position.trim();
+  req.body.gender = req.body.gender.trim();
+
   try {
-    const staffMember = await updateStaffService(id, req.body);
-    res.json(staffMember);
+    const updatedStaff = await updateStaffService(id, req.body);
+    res.json(updatedStaff);
   } catch (error) {
-    res.status(error.message === 'Không tìm thấy nhân viên' ? 404 : 500).json({ error: error.message });
+    // Trả về lỗi chi tiết cho client
+    console.error('Lỗi khi cập nhật nhân viên:', error.message, error.stack);
+
+    // Trả về lỗi chi tiết cho frontend
+    res.status(400).json({ error: error.message || 'Lỗi khi cập nhật nhân viên' });
   }
 };
 

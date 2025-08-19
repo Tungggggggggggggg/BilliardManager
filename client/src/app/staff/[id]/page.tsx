@@ -61,6 +61,8 @@ export default function StaffDetailPage() {
   const detailRef = useRef(null);
   const deleteModalRef = useRef(null);
   const cancelModalRef = useRef(null);
+  const [errors, setErrors] = React.useState<{ email?: string; phone?: string }>({});
+
 
   useEffect(() => {
     if (!id) return;
@@ -83,7 +85,7 @@ export default function StaffDetailPage() {
     }
   }, [id]);
 
-  const positions = ["Quản lý", "Nhân viên", "Thu ngân", "Bảo vệ", "Kỹ thuật", "Lễ tân", "Tạp vụ"];
+  const positions = ["Quản lý", "Nhân viên", "Bảo vệ"];
   const genders = ["Nam", "Nữ", "Khác"];
 
   const handleShowNotification = (message: string, type: 'success' | 'error' | 'info') => {
@@ -97,6 +99,16 @@ export default function StaffDetailPage() {
   const handleDelete = () => {
     setIsConfirmingDelete(true);
   };
+  const validateEmail = (email: string) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
+
+const validatePhone = (phone: string) => {
+  const regex = /^[0-9]{10}$/;
+  return regex.test(phone);
+};
+
 
   const confirmDelete = async () => {
     try {
@@ -175,17 +187,46 @@ export default function StaffDetailPage() {
   };
 
   const handleSaveEdit = async () => {
-    if (!editData) return;
-    try {
-      const res = await api.put(`/staff/${id}`, editData);
-      setStaff(res.data);
-      setEditData(res.data);
-      setIsEditing(false);
-      handleShowNotification('Đã cập nhật thông tin!', 'success');
-    } catch {
-      handleShowNotification('Lỗi khi cập nhật nhân viên!', 'error');
-    }
+  if (!editData) return;
+const newErrors: { email?: string; phone?: string } = {};
+
+  if (!validateEmail(editData.email)) {
+    newErrors.email = "Email không hợp lệ";
+  }
+
+  if (!validatePhone(editData.phone)) {
+    newErrors.phone = "Số điện thoại phải đủ 10 số";
+  }
+
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return; // Dừng gửi API nếu có lỗi
+  } else {
+    setErrors({});
+  }
+  // Chỉ gửi các trường được phép cập nhật
+  const sendData = {
+    name: editData.name,
+    position: editData.position,
+    phone: editData.phone,
+    email: editData.email,
+    birthday: editData.birthday ? editData.birthday.substring(0, 10) : "",
+    gender: editData.gender,
   };
+console.log("Dữ liệu gửi lên:", sendData);
+  try {
+    const res = await api.put(`/staff/${id}`, sendData);
+    setStaff(res.data);
+    setEditData(res.data);
+    setIsEditing(false);
+    handleShowNotification('Đã cập nhật thông tin!', 'success');
+  } catch (err) {
+    handleShowNotification(
+      err?.response?.data?.error || 'Lỗi khi cập nhật nhân viên!',
+      'error'
+    );
+  }
+};
 
   if (!staff) return <div className="p-6 text-red-600 font-semibold">Không tìm thấy nhân viên</div>;
 
@@ -200,7 +241,7 @@ export default function StaffDetailPage() {
               <ArrowLeft size={24} />
             </button>
             <h1 className="text-3xl font-bold text-gray-800">
-              Chi tiết nhân viên #{staff.id}
+              Chi tiết nhân viên {staff.staff_code}
             </h1>
           </div>
           <div className="flex gap-4">
@@ -271,10 +312,14 @@ export default function StaffDetailPage() {
           <EditableInfoCard
             label="Ngày sinh"
             name="birthday"
-            value={formatDateTime(staff.birthday)}
+            value={staff.birthday ? staff.birthday.substring(0, 10) : "Không có dữ liệu"}
             icon={Calendar}
             isEditing={isEditing}
-            editValue={editData?.birthday || ""}
+            editValue={
+              isEditing && editData?.birthday
+                ? editData.birthday.substring(0, 10)
+                : ""
+            }
             onEditChange={handleEditChange}
             type="date"
           />
@@ -291,13 +336,14 @@ export default function StaffDetailPage() {
           />
           <EditableInfoCard
             label="Thời gian vào làm"
-            name="create_at"
-            value={staff.created_at ? formatDateTime(staff.created_at) : "Không có dữ liệu"}
+            name="created_at"
+            value={staff.created_at ? staff.created_at.substring(0, 10) : "Không có dữ liệu"}
             icon={Calendar}
             isEditing={isEditing}
             editValue={editData?.created_at ? editData.created_at.substring(0, 10) : ""}
             onEditChange={handleEditChange}
             type="date"
+            disabled={true}
           />
           <EditableInfoCard
             label="Số điện thoại"
@@ -308,6 +354,7 @@ export default function StaffDetailPage() {
             editValue={editData?.phone || ""}
             onEditChange={handleEditChange}
             type="text"
+            error={errors.phone}
           />
           <EditableInfoCard
             label="Email"
@@ -318,19 +365,27 @@ export default function StaffDetailPage() {
             editValue={editData?.email || ""}
             onEditChange={handleEditChange}
             type="email"
+            error={errors.email}
+
           />
-          <EditableInfoCard
-            label="Mật khẩu"
-            name="password"
-            value={showPassword ? staff.password || "" : "********"}
-            icon={Lock}
-            isEditing={isEditing}
-            editValue={editData?.password || ""}
-            onEditChange={handleEditChange}
-            type={showPassword ? "text" : "password"}
-            toggleVisibility={() => setShowPassword(!showPassword)}
-            showPassword={showPassword}
-          />
+          {/* <EditableInfoCard
+             label="Mật khẩu"
+              name="password"
+              value={
+                showPassword
+                  ? staff.password && staff.password !== "********"
+                    ? staff.password
+                    : "Không có dữ liệu"
+                  : "********"
+              }
+              icon={Lock}
+              isEditing={isEditing}
+              editValue={editData?.password || ""}
+              onEditChange={handleEditChange}
+              type={showPassword ? "text" : "password"}
+              toggleVisibility={() => setShowPassword(!showPassword)}
+              showPassword={showPassword}
+          /> */}
         </div>
       </div>
 
@@ -375,6 +430,8 @@ interface EditableInfoCardProps {
   options?: string[];
   toggleVisibility?: () => void;
   showPassword?: boolean;
+  disabled?: boolean;
+  error?: string;
 }
 
 function EditableInfoCard({
@@ -389,6 +446,8 @@ function EditableInfoCard({
   options = [],
   toggleVisibility,
   showPassword = false,
+  disabled = false,
+  error,
 }: EditableInfoCardProps) {
   return (
     <div className={`p-4 rounded-lg border transition-all duration-300 ${isEditing ? "bg-blue-50 border-blue-200" : "bg-gray-50 hover:shadow-md"}`}>
@@ -406,6 +465,7 @@ function EditableInfoCard({
               value={editValue}
               onChange={onEditChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+              disabled={disabled}
             >
               {options.map((opt) => (
                 <option key={opt} value={opt}>
@@ -420,8 +480,10 @@ function EditableInfoCard({
               value={editValue}
               onChange={onEditChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+              disabled={disabled}
             />
           )}
+          {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
           {name === "password" && toggleVisibility && (
             <button
               type="button"
